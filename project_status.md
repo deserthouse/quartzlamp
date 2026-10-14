@@ -50,17 +50,29 @@ Compose + MVVM + StateFlow。分层：`ble/`（连接与协议）· `protocol/`�
 `ui/`（扫描、调色、麦克风、模式、音乐、定时六屏 + Navigation）· `data/`（灯效表等静态数据）。
 不移植厂商代码；从 APK 提取的 UUID/帧格式属客观接口事实，自行实现。
 
-### 3.3 BLE 层选型（待用户拍板）
+### 3.3 BLE 层选型（已拍板 2026-10-15：沿用厂商同款 FastBle）
 
-| 方案 | 说明 | 评估 |
-|------|------|------|
-| **B. 自写协程 BLE 封装（推荐）** | `BluetoothLeScanner` + `BluetoothGatt` 包成 Flow/挂起函数 | 协议面极小（一个写特征±一个 notify），约 400 行零依赖；契合单模块极简基线；Android BLE 经典坑（GATT 133、操作串行化）可控 |
-| A. Nordic Kotlin BLE Library | `no.nordicsemi.android.kotlin.ble`，Apache-2.0 | 成熟但长期 alpha，为复杂 GATT 场景设计；若自写撞上边角问题可退此方案 |
-| C. FastBle（厂商同款） | `com.clj.fastble` | 多年未维护、回调式 API 与协程生态不合，不推荐 |
+**决策：FastBle 2.3.4，照抄厂商参数，外面包一层我们自己的 callback→Flow 薄门面（几十行），
+FastBle 类永不直接进入 UI 层。** 自写封装与 Nordic 库降级为兜底路径（不启用，仅在真撞墙时启用）。
+
+决策理由（用户定调：只换 UI，不动技术栈）：
+1. **变量隔离**——厂商的 FastBle+这台灯是已验证组合。保它，则功能不生效时嫌疑只剩
+   协议帧与 UI 逻辑两层，传输层嫌疑最小化，故障定位最快；换库等于多引入一层甩锅对象。
+2. 律动写流的 conflate 优化（最新值优先）降为**后续可选项**，验收线 = 不劣于厂商 App。
+3. 停更风险评估：FastBle 是 framework BLE API 的薄封装（这些年只加方法不删方法），
+   且厂商 App 至今在 Play 分发（targetSdk 31、Android 12+ 新权限模型实测可用），实际风险低。
+
+依赖落地（jcenter 已死、Maven Central 无、JitPack 无官方构建）：
+**AAR 内嵌 `app/libs/`**（Apache-2.0 可合法内嵌，构建零外部仓库依赖，永久可复现），
+来源核对后提交；`build.gradle.kts` 用 `files("libs/FastBleLib-2.3.4.aar")` 引入。
+M0 时对比厂商 dex 内 FastBle 类集与 2.3.4 确认版本一致（厂商 compileSdk 31 时代对应末版 2.3.4）。
+
+架构纪律不变：BLE 层收在 `LampConnection` Flow 门面后——这是分层卫生（vendor 库不进 UI），
+并非为换库预留；真要兜底时只动门面后实现，上层零改动。
 
 ### 3.4 待用户拍板项
 
-1. BLE 层选型（默认按推荐 B 执行）。
+1. ~~BLE 层选型~~ ✅ 已决（2026-10-15）：FastBle 2.3.4 厂商同款 + Flow 门面，见 3.3。
 2. 应用名与品牌（命名规范：用户拍板）。
 3. 灯效文案：153 个效名自行重拟（不照抄原厂字符串，版权自保），是否接受。
 4. 测试环境：真灯何时在手（决定 M2 排期）。
@@ -100,7 +112,8 @@ Compose + MVVM + StateFlow。分层：`ble/`（连接与协议）· `protocol/`�
 
 - ✅ 原厂 APK 拆解完成（产物 `tests/apk_analysis/`，结论见本文第 1 节）
 - ✅ 可行性评估与重建方案定稿（本文件）
-- ⏳ 等待用户批准方案 → M0 协议全量提取
+- ✅ BLE 层选型拍板：FastBle 2.3.4 厂商同款 + Flow 门面（2026-10-15，变量隔离优先）
+- ⏳ 待拍板：应用名 / 灯效文案重拟 / 真灯排期 → 之后进入 M0 协议全量提取
 
 ### 核心文件拓扑
 
