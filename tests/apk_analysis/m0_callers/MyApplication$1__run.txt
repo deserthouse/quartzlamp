@@ -1,0 +1,13 @@
+# com/lenzetech/quartzlamp/application/MyApplication$1.run()V
+[2f5cc8] com.lenzetech.quartzlamp.application.MyApplication$1.run:()V
+0000: iget-object v0, v3, Lcom/lenzetech/quartzlamp/application/MyApplication$1;.this$0:Lcom/lenzetech/quartzlamp/application/MyApplication; // field@8e2b
+0002: const/16 v1, #int 9 // #9
+0004: new-array v1, v1, [B // type@180e
+0006: fill-array-data v1, 00000016 // +00000010
+0009: invoke-virtual {v0, v1}, Lcom/lenzetech/quartzlamp/application/MyApplication;.write:([B)V // method@8233
+000c: iget-object v0, v3, Lcom/lenzetech/quartzlamp/application/MyApplication$1;.this$0:Lcom/lenzetech/quartzlamp/application/MyApplication; // field@8e2b
+000e: iget-object v0, v0, Lcom/lenzetech/quartzlamp/application/MyApplication;.handler:Landroid/os/Handler; // field@8e39
+0010: const-wide/16 v1, #int 4900 // #1324
+0012: invoke-virtual {v0, v3, v1, v2}, Landroid/os/Handler;.postDelayed:(Ljava/lang/Runnable;J)Z // method@0647
+0015: return-void
+0016: array-data (9 units)

@@ -1,0 +1,32 @@
+# com/lenzetech/quartzlamp/colorful_ui/timer.getDeviceOpenTimer()V
+[2fb82c] com.lenzetech.quartzlamp.colorful_ui.timer.getDeviceOpenTimer:()V
+0000: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+0003: move-result-object v0
+0004: const/16 v1, #int 9 // #9
+0006: new-array v1, v1, [B // type@180e
+0008: fill-array-data v1, 0000003e // +00000036
+000b: invoke-virtual {v0, v1}, Lcom/lenzetech/quartzlamp/application/MyApplication;.write:([B)V // method@8233
+000e: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+0011: move-result-object v0
+0012: iget-object v0, v0, Lcom/lenzetech/quartzlamp/application/MyApplication;.bleManager:Lcom/clj/fastble/BleManager; // field@8e35
+0014: invoke-virtual {v0}, Lcom/clj/fastble/BleManager;.getAllConnectedDevice:()Ljava/util/List; // method@5c73
+0017: move-result-object v0
+0018: invoke-interface {v0}, Ljava/util/List;.size:()I // method@8884
+001b: move-result v1
+001c: if-lez v1, 003d // +0021
+001e: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+0021: move-result-object v1
+0022: iget-object v1, v1, Lcom/lenzetech/quartzlamp/application/MyApplication;.bleManager:Lcom/clj/fastble/BleManager; // field@8e35
+0024: const/4 v2, #int 0 // #0
+0025: invoke-interface {v0, v2}, Ljava/util/List;.get:(I)Ljava/lang/Object; // method@8879
+0028: move-result-object v0
+0029: check-cast v0, Lcom/clj/fastble/data/BleDevice; // type@0b4a
+002b: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+002e: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+0031: new-instance v2, Lcom/lenzetech/quartzlamp/colorful_ui/timer$8; // type@0fc3
+0033: invoke-direct {v2, v5}, Lcom/lenzetech/quartzlamp/colorful_ui/timer$8;.<init>:(Lcom/lenzetech/quartzlamp/colorful_ui/timer;)V // method@82d5
+0036: const-string v3, "0000FFF0-0000-1000-8000-00805f9b34fb" // string@1295
+0038: const-string v4, "0000FFF3-0000-1000-8000-00805f9b34fb" // string@1296
+003a: invoke-virtual {v1, v0, v3, v4, v2}, Lcom/clj/fastble/BleManager;.read:(Lcom/clj/fastble/data/BleDevice;Ljava/lang/String;Ljava/lang/String;Lcom/clj/fastble/callback/BleReadCallback;)V // method@5c90
+003d: return-void
+003e: array-data (9 units)

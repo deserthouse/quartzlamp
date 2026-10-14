@@ -1,0 +1,67 @@
+# com/lenzetech/quartzlamp/utils/VoiceDBModule.changColorRGB(III)V
+[2fe298] com.lenzetech.quartzlamp.utils.VoiceDBModule.changColorRGB:(III)V
+0000: iget-boolean v0, v12, Lcom/lenzetech/quartzlamp/utils/VoiceDBModule;.isRGB:Z // field@8f0f
+0002: const/16 v1, #int 8 // #8
+0004: const/4 v2, #int 4 // #4
+0005: const/4 v3, #int 2 // #2
+0006: const/4 v4, #int 7 // #7
+0007: const/4 v5, #int 5 // #5
+0008: const/4 v6, #int 3 // #3
+0009: const/4 v7, #int 6 // #6
+000a: const/16 v8, #int 9 // #9
+000c: const/4 v9, #int 1 // #1
+000d: const/4 v10, #int 0 // #0
+000e: if-eqz v0, 0033 // +0025
+0010: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+0013: move-result-object v0
+0014: new-array v8, v8, [B // type@180e
+0016: const/16 v11, #int 126 // #7e
+0018: aput-byte v11, v8, v10
+001a: aput-byte v4, v8, v9
+001c: aput-byte v5, v8, v3
+001e: aput-byte v6, v8, v6
+0020: int-to-byte v13, v13
+0021: aput-byte v13, v8, v2
+0023: int-to-byte v13, v14
+0024: aput-byte v13, v8, v5
+0026: int-to-byte v13, v15
+0027: aput-byte v13, v8, v7
+0029: aput-byte v10, v8, v4
+002b: const/16 v13, #int -17 // #ffef
+002d: aput-byte v13, v8, v1
+002f: invoke-virtual {v0, v8}, Lcom/lenzetech/quartzlamp/application/MyApplication;.write:([B)V // method@8233
+0032: goto 0070 // +003e
+0033: invoke-static {v13, v14, v15}, Lcom/lenzetech/quartzlamp/utils/RgbToHsv;.rgbToHsv:(III)[F // method@8352
+0036: move-result-object v13
+0037: aget v14, v13, v10
+0039: float-to-int v14, v14
+003a: aget v13, v13, v9
+003c: const/high16 v15, #int 1148846080 // #447a
+003e: mul-float v13, v13, v15
+0040: float-to-int v13, v13
+0041: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+0044: move-result-object v15
+0045: const/16 v0, #int 10 // #a
+0047: new-array v0, v0, [B // type@180e
+0049: const/16 v11, #int -68 // #ffbc
+004b: aput-byte v11, v0, v10
+004d: aput-byte v8, v0, v9
+004f: aput-byte v7, v0, v3
+0051: div-int/lit16 v3, v14, #int 255 // #00ff
+0053: int-to-byte v3, v3
+0054: aput-byte v3, v0, v6
+0056: rem-int/lit16 v14, v14, #int 255 // #00ff
+0058: int-to-byte v14, v14
+0059: aput-byte v14, v0, v2
+005b: div-int/lit16 v14, v13, #int 255 // #00ff
+005d: int-to-byte v14, v14
+005e: aput-byte v14, v0, v5
+0060: rem-int/lit16 v13, v13, #int 255 // #00ff
+0062: int-to-byte v13, v13
+0063: aput-byte v13, v0, v7
+0065: aput-byte v10, v0, v4
+0067: aput-byte v10, v0, v1
+0069: const/16 v13, #int 85 // #55
+006b: aput-byte v13, v0, v8
+006d: invoke-virtual {v15, v0}, Lcom/lenzetech/quartzlamp/application/MyApplication;.write:([B)V // method@8233
+0070: return-void

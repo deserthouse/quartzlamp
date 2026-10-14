@@ -1,0 +1,38 @@
+# com/lenzetech/quartzlamp/colorful_ui/mic$2.onCheckedChanged(Landroid/widget/RadioGroup;I)V
+[2f82ec] com.lenzetech.quartzlamp.colorful_ui.mic$2.onCheckedChanged:(Landroid/widget/RadioGroup;I)V
+0000: const/4 v1, #int 5 // #5
+0001: packed-switch v2, 0000003a // +00000039
+0004: goto 0038 // +0034
+0005: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+0008: move-result-object v2
+0009: new-array v1, v1, [B // type@180e
+000b: fill-array-data v1, 0000004a // +0000003f
+000e: invoke-virtual {v2, v1}, Lcom/lenzetech/quartzlamp/application/MyApplication;.write:([B)V // method@8233
+0011: goto 0038 // +0027
+0012: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+0015: move-result-object v2
+0016: new-array v1, v1, [B // type@180e
+0018: fill-array-data v1, 00000052 // +0000003a
+001b: invoke-virtual {v2, v1}, Lcom/lenzetech/quartzlamp/application/MyApplication;.write:([B)V // method@8233
+001e: goto 0038 // +001a
+001f: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+0022: move-result-object v2
+0023: new-array v1, v1, [B // type@180e
+0025: fill-array-data v1, 0000005a // +00000035
+0028: invoke-virtual {v2, v1}, Lcom/lenzetech/quartzlamp/application/MyApplication;.write:([B)V // method@8233
+002b: goto 0038 // +000d
+002c: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+002f: move-result-object v2
+0030: new-array v1, v1, [B // type@180e
+0032: fill-array-data v1, 00000062 // +00000030
+0035: invoke-virtual {v2, v1}, Lcom/lenzetech/quartzlamp/application/MyApplication;.write:([B)V // method@8233
+0038: return-void
+0039: nop // spacer
+003a: packed-switch-data (16 units)
+004a: array-data (7 units)
+0051: nop // spacer
+0052: array-data (7 units)
+0059: nop // spacer
+005a: array-data (7 units)
+0061: nop // spacer
+0062: array-data (7 units)

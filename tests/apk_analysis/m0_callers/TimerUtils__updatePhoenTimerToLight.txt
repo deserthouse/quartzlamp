@@ -1,0 +1,60 @@
+# com/lenzetech/quartzlamp/utils/TimerUtils.updatePhoenTimerToLight()V
+[2fdd10] com.lenzetech.quartzlamp.utils.TimerUtils.updatePhoenTimerToLight:()V
+0000: invoke-static {}, Ljava/util/Calendar;.getInstance:()Ljava/util/Calendar; // method@87ff
+0003: move-result-object v0
+0004: const/16 v1, #int 11 // #b
+0006: invoke-virtual {v0, v1}, Ljava/util/Calendar;.get:(I)I // method@87fb
+0009: move-result v1
+000a: const/16 v2, #int 12 // #c
+000c: invoke-virtual {v0, v2}, Ljava/util/Calendar;.get:(I)I // method@87fb
+000f: move-result v2
+0010: const/16 v3, #int 13 // #d
+0012: invoke-virtual {v0, v3}, Ljava/util/Calendar;.get:(I)I // method@87fb
+0015: move-result v3
+0016: const/4 v4, #int 7 // #7
+0017: invoke-virtual {v0, v4}, Ljava/util/Calendar;.get:(I)I // method@87fb
+001a: move-result v0
+001b: new-instance v5, Ljava/lang/StringBuilder; // type@1060
+001d: invoke-direct {v5}, Ljava/lang/StringBuilder;.<init>:()V // method@8668
+0020: invoke-virtual {v5, v1}, Ljava/lang/StringBuilder;.append:(I)Ljava/lang/StringBuilder; // method@866f
+0023: const-string v6, "," // string@1114
+0025: invoke-virtual {v5, v6}, Ljava/lang/StringBuilder;.append:(Ljava/lang/String;)Ljava/lang/StringBuilder; // method@8674
+0028: invoke-virtual {v5, v2}, Ljava/lang/StringBuilder;.append:(I)Ljava/lang/StringBuilder; // method@866f
+002b: invoke-virtual {v5, v6}, Ljava/lang/StringBuilder;.append:(Ljava/lang/String;)Ljava/lang/StringBuilder; // method@8674
+002e: const/4 v6, #int 1 // #1
+002f: sub-int/2addr v0, v6
+0030: invoke-virtual {v5, v0}, Ljava/lang/StringBuilder;.append:(I)Ljava/lang/StringBuilder; // method@866f
+0033: invoke-virtual {v5}, Ljava/lang/StringBuilder;.toString:()Ljava/lang/String; // method@867e
+0036: move-result-object v5
+0037: const-string v7, "同步时间" // string@bf4f
+0039: invoke-static {v7, v5}, Landroid/util/Log;.e:(Ljava/lang/String;Ljava/lang/String;)I // method@07ce
+003c: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+003f: move-result-object v5
+0040: const/16 v7, #int 9 // #9
+0042: new-array v7, v7, [B // type@180e
+0044: const/4 v8, #int 0 // #0
+0045: const/16 v9, #int 126 // #7e
+0047: aput-byte v9, v7, v8
+0049: aput-byte v4, v7, v6
+004b: const/4 v6, #int 2 // #2
+004c: const/16 v8, #int -125 // #ff83
+004e: aput-byte v8, v7, v6
+0050: int-to-byte v1, v1
+0051: const/4 v6, #int 3 // #3
+0052: aput-byte v1, v7, v6
+0054: int-to-byte v1, v2
+0055: const/4 v2, #int 4 // #4
+0056: aput-byte v1, v7, v2
+0058: int-to-byte v1, v3
+0059: const/4 v2, #int 5 // #5
+005a: aput-byte v1, v7, v2
+005c: int-to-byte v0, v0
+005d: const/4 v1, #int 6 // #6
+005e: aput-byte v0, v7, v1
+0060: const/4 v0, #int -1 // #ff
+0061: aput-byte v0, v7, v4
+0063: const/16 v0, #int 8 // #8
+0065: const/16 v1, #int -17 // #ffef
+0067: aput-byte v1, v7, v0
+0069: invoke-virtual {v5, v7}, Lcom/lenzetech/quartzlamp/application/MyApplication;.write:([B)V // method@8233
+006c: return-void

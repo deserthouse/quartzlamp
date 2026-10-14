@@ -1,0 +1,20 @@
+# com/lenzetech/quartzlamp/ColorfulActivity$5.onChecked(Z)V
+[2f2a38] com.lenzetech.quartzlamp.ColorfulActivity$5.onChecked:(Z)V
+0000: const/4 v0, #int 5 // #5
+0001: if-eqz v2, 0010 // +000f
+0003: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+0006: move-result-object v2
+0007: new-array v0, v0, [B // type@180e
+0009: fill-array-data v0, 0000001e // +00000015
+000c: invoke-virtual {v2, v0}, Lcom/lenzetech/quartzlamp/application/MyApplication;.write:([B)V // method@8233
+000f: goto 001c // +000d
+0010: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+0013: move-result-object v2
+0014: new-array v0, v0, [B // type@180e
+0016: fill-array-data v0, 00000026 // +00000010
+0019: invoke-virtual {v2, v0}, Lcom/lenzetech/quartzlamp/application/MyApplication;.write:([B)V // method@8233
+001c: return-void
+001d: nop // spacer
+001e: array-data (7 units)
+0025: nop // spacer
+0026: array-data (7 units)

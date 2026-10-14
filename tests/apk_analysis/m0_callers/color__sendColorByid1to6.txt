@@ -1,0 +1,53 @@
+# com/lenzetech/quartzlamp/colorful_ui/color.sendColorByid1to6(I)V
+[2f7eb0] com.lenzetech.quartzlamp.colorful_ui.color.sendColorByid1to6:(I)V
+0000: invoke-virtual {v8}, Lcom/lenzetech/quartzlamp/colorful_ui/color;.getContext:()Landroid/content/Context; // method@8255
+0003: move-result-object v0
+0004: invoke-static {v0, v9}, Lcom/lenzetech/quartzlamp/utils/ShareData;.getColorByIndex:(Landroid/content/Context;I)[I // method@8354
+0007: move-result-object v9
+0008: const/4 v0, #int 0 // #0
+0009: aget v1, v9, v0
+000b: const/4 v2, #int 1 // #1
+000c: aget v3, v9, v2
+000e: const/4 v4, #int 2 // #2
+000f: aget v9, v9, v4
+0011: invoke-static {v1, v3, v9}, Lcom/lenzetech/quartzlamp/utils/RgbToHsv;.rgbToHsv:(III)[F // method@8352
+0014: move-result-object v9
+0015: aget v1, v9, v0
+0017: float-to-int v1, v1
+0018: aget v9, v9, v2
+001a: const/high16 v3, #int 1148846080 // #447a
+001c: mul-float v9, v9, v3
+001e: float-to-int v9, v9
+001f: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+0022: move-result-object v3
+0023: const/16 v5, #int 10 // #a
+0025: new-array v5, v5, [B // type@180e
+0027: const/16 v6, #int -68 // #ffbc
+0029: aput-byte v6, v5, v0
+002b: const/4 v6, #int 4 // #4
+002c: aput-byte v6, v5, v2
+002e: const/4 v2, #int 6 // #6
+002f: aput-byte v2, v5, v4
+0031: div-int/lit16 v4, v1, #int 256 // #0100
+0033: int-to-byte v4, v4
+0034: const/4 v7, #int 3 // #3
+0035: aput-byte v4, v5, v7
+0037: rem-int/lit16 v1, v1, #int 256 // #0100
+0039: int-to-byte v1, v1
+003a: aput-byte v1, v5, v6
+003c: div-int/lit16 v1, v9, #int 256 // #0100
+003e: int-to-byte v1, v1
+003f: const/4 v4, #int 5 // #5
+0040: aput-byte v1, v5, v4
+0042: rem-int/lit16 v9, v9, #int 256 // #0100
+0044: int-to-byte v9, v9
+0045: aput-byte v9, v5, v2
+0047: const/4 v9, #int 7 // #7
+0048: aput-byte v0, v5, v9
+004a: const/16 v9, #int 8 // #8
+004c: aput-byte v0, v5, v9
+004e: const/16 v9, #int 9 // #9
+0050: const/16 v0, #int 85 // #55
+0052: aput-byte v0, v5, v9
+0054: invoke-virtual {v3, v5}, Lcom/lenzetech/quartzlamp/application/MyApplication;.write:([B)V // method@8233
+0057: return-void

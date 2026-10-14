@@ -1,0 +1,53 @@
+# com/lenzetech/quartzlamp/colorful_ui/mode$1.onStopTrackingTouch(Landroid/widget/SeekBar;)V
+[2f89ec] com.lenzetech.quartzlamp.colorful_ui.mode$1.onStopTrackingTouch:(Landroid/widget/SeekBar;)V
+0000: iget-object v0, v4, Lcom/lenzetech/quartzlamp/colorful_ui/mode$1;.this$0:Lcom/lenzetech/quartzlamp/colorful_ui/mode; // field@8e70
+0002: iget-object v0, v0, Lcom/lenzetech/quartzlamp/colorful_ui/mode;.tvSpeed:Landroid/widget/TextView; // field@8e82
+0004: new-instance v1, Ljava/lang/StringBuilder; // type@1060
+0006: invoke-direct {v1}, Ljava/lang/StringBuilder;.<init>:()V // method@8668
+0009: iget-object v2, v4, Lcom/lenzetech/quartzlamp/colorful_ui/mode$1;.this$0:Lcom/lenzetech/quartzlamp/colorful_ui/mode; // field@8e70
+000b: const v3, #float 1.92744e+38 // #7f110127
+000e: invoke-virtual {v2, v3}, Lcom/lenzetech/quartzlamp/colorful_ui/mode;.getString:(I)Ljava/lang/String; // method@8296
+0011: move-result-object v2
+0012: invoke-virtual {v1, v2}, Ljava/lang/StringBuilder;.append:(Ljava/lang/String;)Ljava/lang/StringBuilder; // method@8674
+0015: const-string v2, ":" // string@12a8
+0017: invoke-virtual {v1, v2}, Ljava/lang/StringBuilder;.append:(Ljava/lang/String;)Ljava/lang/StringBuilder; // method@8674
+001a: invoke-virtual {v5}, Landroid/widget/SeekBar;.getProgress:()I // method@0f08
+001d: move-result v2
+001e: invoke-virtual {v1, v2}, Ljava/lang/StringBuilder;.append:(I)Ljava/lang/StringBuilder; // method@866f
+0021: invoke-virtual {v1}, Ljava/lang/StringBuilder;.toString:()Ljava/lang/String; // method@867e
+0024: move-result-object v1
+0025: invoke-virtual {v0, v1}, Landroid/widget/TextView;.setText:(Ljava/lang/CharSequence;)V // method@0fbe
+0028: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+002b: move-result-object v0
+002c: invoke-virtual {v5}, Landroid/widget/SeekBar;.getProgress:()I // method@0f08
+002f: move-result v1
+0030: iput v1, v0, Lcom/lenzetech/quartzlamp/application/MyApplication;.speed:I // field@8e41
+0032: invoke-virtual {v5}, Landroid/widget/SeekBar;.getProgress:()I // method@0f08
+0035: move-result v5
+0036: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+0039: move-result-object v0
+003a: iget-boolean v0, v0, Lcom/lenzetech/quartzlamp/application/MyApplication;.isInQuandengMode:Z // field@8e3b
+003c: const/16 v1, #int 70 // #46
+003e: if-eqz v0, 0044 // +0006
+0040: if-le v5, v1, 0044 // +0004
+0042: const/16 v5, #int 70 // #46
+0044: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+0047: move-result-object v0
+0048: const/4 v1, #int 5 // #5
+0049: new-array v1, v1, [B // type@180e
+004b: const/4 v2, #int 0 // #0
+004c: const/16 v3, #int -68 // #ffbc
+004e: aput-byte v3, v1, v2
+0050: const/16 v2, #int 8 // #8
+0052: const/4 v3, #int 1 // #1
+0053: aput-byte v2, v1, v3
+0055: const/4 v2, #int 2 // #2
+0056: aput-byte v3, v1, v2
+0058: const/4 v2, #int 3 // #3
+0059: int-to-byte v5, v5
+005a: aput-byte v5, v1, v2
+005c: const/4 v5, #int 4 // #4
+005d: const/16 v2, #int 85 // #55
+005f: aput-byte v2, v1, v5
+0061: invoke-virtual {v0, v1}, Lcom/lenzetech/quartzlamp/application/MyApplication;.write:([B)V // method@8233
+0064: return-void

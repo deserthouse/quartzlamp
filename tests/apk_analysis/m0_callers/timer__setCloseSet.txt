@@ -1,0 +1,102 @@
+# com/lenzetech/quartzlamp/colorful_ui/timer.setCloseSet()V
+[2fbd68] com.lenzetech.quartzlamp.colorful_ui.timer.setCloseSet:()V
+0000: new-instance v0, Ljava/lang/StringBuilder; // type@1060
+0002: invoke-direct {v0}, Ljava/lang/StringBuilder;.<init>:()V // method@8668
+0005: iget v1, v15, Lcom/lenzetech/quartzlamp/colorful_ui/timer;.close_hour:I // field@8eae
+0007: invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;.append:(I)Ljava/lang/StringBuilder; // method@866f
+000a: const-string v1, "," // string@1114
+000c: invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;.append:(Ljava/lang/String;)Ljava/lang/StringBuilder; // method@8674
+000f: iget v2, v15, Lcom/lenzetech/quartzlamp/colorful_ui/timer;.close_min:I // field@8eaf
+0011: invoke-virtual {v0, v2}, Ljava/lang/StringBuilder;.append:(I)Ljava/lang/StringBuilder; // method@866f
+0014: invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;.append:(Ljava/lang/String;)Ljava/lang/StringBuilder; // method@8674
+0017: iget-object v1, v15, Lcom/lenzetech/quartzlamp/colorful_ui/timer;.week_select_close:[Z // field@8ec7
+0019: invoke-virtual {v15, v1}, Lcom/lenzetech/quartzlamp/colorful_ui/timer;.getBoolArrayBte:([Z)B // method@82f3
+001c: move-result v1
+001d: invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;.append:(I)Ljava/lang/StringBuilder; // method@866f
+0020: invoke-virtual {v0}, Ljava/lang/StringBuilder;.toString:()Ljava/lang/String; // method@867e
+0023: move-result-object v0
+0024: const-string v1, "设置Timer关灯信息：" // string@bf67
+0026: invoke-static {v1, v0}, Landroid/util/Log;.d:(Ljava/lang/String;Ljava/lang/String;)I // method@07cc
+0029: iget-object v0, v15, Lcom/lenzetech/quartzlamp/colorful_ui/timer;.sbTimeOff:Lcom/kyleduo/switchbutton/SwitchButton; // field@8eb4
+002b: invoke-virtual {v0}, Lcom/kyleduo/switchbutton/SwitchButton;.isChecked:()Z // method@813d
+002e: move-result v0
+002f: const/16 v1, #int -17 // #ffef
+0031: const/4 v2, #int 7 // #7
+0032: const/4 v3, #int 6 // #6
+0033: const/4 v4, #int 5 // #5
+0034: const/4 v5, #int 4 // #4
+0035: const/4 v6, #int 3 // #3
+0036: const/16 v7, #int -126 // #ff82
+0038: const/4 v8, #int 2 // #2
+0039: const/16 v9, #int 126 // #7e
+003b: const/16 v10, #int 9 // #9
+003d: const/16 v11, #int 8 // #8
+003f: const/4 v12, #int 1 // #1
+0040: const/4 v13, #int 0 // #0
+0041: if-eqz v0, 009a // +0059
+0043: iget v0, v15, Lcom/lenzetech/quartzlamp/colorful_ui/timer;.close_hour:I // field@8eae
+0045: add-int/lit8 v0, v0, #int 12 // #0c
+0047: const/16 v14, #int 24 // #18
+0049: if-ne v0, v14, 0070 // +0027
+004b: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+004e: move-result-object v0
+004f: new-array v10, v10, [B // type@180e
+0051: aput-byte v9, v10, v13
+0053: aput-byte v11, v10, v12
+0055: aput-byte v7, v10, v8
+0057: aput-byte v13, v10, v6
+0059: iget v6, v15, Lcom/lenzetech/quartzlamp/colorful_ui/timer;.close_min:I // field@8eaf
+005b: int-to-byte v6, v6
+005c: aput-byte v6, v10, v5
+005e: aput-byte v13, v10, v4
+0060: aput-byte v12, v10, v3
+0062: iget-object v3, v15, Lcom/lenzetech/quartzlamp/colorful_ui/timer;.week_select_close:[Z // field@8ec7
+0064: invoke-virtual {v15, v3}, Lcom/lenzetech/quartzlamp/colorful_ui/timer;.getBoolArrayBte:([Z)B // method@82f3
+0067: move-result v3
+0068: aput-byte v3, v10, v2
+006a: aput-byte v1, v10, v11
+006c: invoke-virtual {v0, v10}, Lcom/lenzetech/quartzlamp/application/MyApplication;.write:([B)V // method@8233
+006f: goto 00c1 // +0052
+0070: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+0073: move-result-object v0
+0074: new-array v10, v10, [B // type@180e
+0076: aput-byte v9, v10, v13
+0078: aput-byte v11, v10, v12
+007a: aput-byte v7, v10, v8
+007c: iget v7, v15, Lcom/lenzetech/quartzlamp/colorful_ui/timer;.close_hour:I // field@8eae
+007e: add-int/lit8 v7, v7, #int 12 // #0c
+0080: int-to-byte v7, v7
+0081: aput-byte v7, v10, v6
+0083: iget v6, v15, Lcom/lenzetech/quartzlamp/colorful_ui/timer;.close_min:I // field@8eaf
+0085: int-to-byte v6, v6
+0086: aput-byte v6, v10, v5
+0088: aput-byte v13, v10, v4
+008a: aput-byte v12, v10, v3
+008c: iget-object v3, v15, Lcom/lenzetech/quartzlamp/colorful_ui/timer;.week_select_close:[Z // field@8ec7
+008e: invoke-virtual {v15, v3}, Lcom/lenzetech/quartzlamp/colorful_ui/timer;.getBoolArrayBte:([Z)B // method@82f3
+0091: move-result v3
+0092: aput-byte v3, v10, v2
+0094: aput-byte v1, v10, v11
+0096: invoke-virtual {v0, v10}, Lcom/lenzetech/quartzlamp/application/MyApplication;.write:([B)V // method@8233
+0099: goto 00c1 // +0028
+009a: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+009d: move-result-object v0
+009e: new-array v10, v10, [B // type@180e
+00a0: aput-byte v9, v10, v13
+00a2: aput-byte v11, v10, v12
+00a4: aput-byte v7, v10, v8
+00a6: iget v7, v15, Lcom/lenzetech/quartzlamp/colorful_ui/timer;.close_hour:I // field@8eae
+00a8: int-to-byte v7, v7
+00a9: aput-byte v7, v10, v6
+00ab: iget v6, v15, Lcom/lenzetech/quartzlamp/colorful_ui/timer;.close_min:I // field@8eaf
+00ad: int-to-byte v6, v6
+00ae: aput-byte v6, v10, v5
+00b0: aput-byte v13, v10, v4
+00b2: aput-byte v12, v10, v3
+00b4: iget-object v3, v15, Lcom/lenzetech/quartzlamp/colorful_ui/timer;.week_select_close:[Z // field@8ec7
+00b6: invoke-virtual {v15, v3}, Lcom/lenzetech/quartzlamp/colorful_ui/timer;.getBoolArrayBte:([Z)B // method@82f3
+00b9: move-result v3
+00ba: aput-byte v3, v10, v2
+00bc: aput-byte v1, v10, v11
+00be: invoke-virtual {v0, v10}, Lcom/lenzetech/quartzlamp/application/MyApplication;.write:([B)V // method@8233
+00c1: return-void

@@ -1,0 +1,50 @@
+# com/lenzetech/quartzlamp/colorful_ui/color.changClor_01()V
+[2f76b0] com.lenzetech.quartzlamp.colorful_ui.color.changClor_01:()V
+0000: iget-object v0, v9, Lcom/lenzetech/quartzlamp/colorful_ui/color;.colorArray:[I // field@8e48
+0002: const/4 v1, #int 0 // #0
+0003: aget v2, v0, v1
+0005: const/4 v3, #int 1 // #1
+0006: aget v4, v0, v3
+0008: const/4 v5, #int 2 // #2
+0009: aget v0, v0, v5
+000b: invoke-static {v2, v4, v0}, Lcom/lenzetech/quartzlamp/utils/RgbToHsv;.rgbToHsv:(III)[F // method@8352
+000e: move-result-object v0
+000f: aget v2, v0, v1
+0011: float-to-int v2, v2
+0012: aget v0, v0, v3
+0014: const/high16 v4, #int 1148846080 // #447a
+0016: mul-float v0, v0, v4
+0018: float-to-int v0, v0
+0019: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+001c: move-result-object v4
+001d: const/16 v6, #int 10 // #a
+001f: new-array v6, v6, [B // type@180e
+0021: const/16 v7, #int -68 // #ffbc
+0023: aput-byte v7, v6, v1
+0025: const/4 v7, #int 4 // #4
+0026: aput-byte v7, v6, v3
+0028: const/4 v3, #int 6 // #6
+0029: aput-byte v3, v6, v5
+002b: div-int/lit16 v5, v2, #int 256 // #0100
+002d: int-to-byte v5, v5
+002e: const/4 v8, #int 3 // #3
+002f: aput-byte v5, v6, v8
+0031: rem-int/lit16 v2, v2, #int 256 // #0100
+0033: int-to-byte v2, v2
+0034: aput-byte v2, v6, v7
+0036: div-int/lit16 v2, v0, #int 256 // #0100
+0038: int-to-byte v2, v2
+0039: const/4 v5, #int 5 // #5
+003a: aput-byte v2, v6, v5
+003c: rem-int/lit16 v0, v0, #int 256 // #0100
+003e: int-to-byte v0, v0
+003f: aput-byte v0, v6, v3
+0041: const/4 v0, #int 7 // #7
+0042: aput-byte v1, v6, v0
+0044: const/16 v0, #int 8 // #8
+0046: aput-byte v1, v6, v0
+0048: const/16 v0, #int 9 // #9
+004a: const/16 v1, #int 85 // #55
+004c: aput-byte v1, v6, v0
+004e: invoke-virtual {v4, v6}, Lcom/lenzetech/quartzlamp/application/MyApplication;.write:([B)V // method@8233
+0051: return-void

@@ -1,0 +1,28 @@
+# com/lenzetech/quartzlamp/colorful_ui/mic$3.onStopTrackingTouch(Landroid/widget/SeekBar;)V
+[2f8414] com.lenzetech.quartzlamp.colorful_ui.mic$3.onStopTrackingTouch:(Landroid/widget/SeekBar;)V
+0000: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+0003: invoke-virtual {v5}, Landroid/widget/SeekBar;.getProgress:()I // method@0f08
+0006: move-result v0
+0007: sput v0, Lcom/lenzetech/quartzlamp/application/MyApplication;.micSeekbarValue:I // field@8e3c
+0009: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+000c: move-result-object v0
+000d: const/4 v1, #int 5 // #5
+000e: new-array v1, v1, [B // type@180e
+0010: const/4 v2, #int 0 // #0
+0011: const/16 v3, #int -68 // #ffbc
+0013: aput-byte v3, v1, v2
+0015: const/16 v2, #int 18 // #12
+0017: const/4 v3, #int 1 // #1
+0018: aput-byte v2, v1, v3
+001a: const/4 v2, #int 2 // #2
+001b: aput-byte v3, v1, v2
+001d: invoke-virtual {v5}, Landroid/widget/SeekBar;.getProgress:()I // method@0f08
+0020: move-result v5
+0021: int-to-byte v5, v5
+0022: const/4 v2, #int 3 // #3
+0023: aput-byte v5, v1, v2
+0025: const/4 v5, #int 4 // #4
+0026: const/16 v2, #int 85 // #55
+0028: aput-byte v2, v1, v5
+002a: invoke-virtual {v0, v1}, Lcom/lenzetech/quartzlamp/application/MyApplication;.write:([B)V // method@8233
+002d: return-void

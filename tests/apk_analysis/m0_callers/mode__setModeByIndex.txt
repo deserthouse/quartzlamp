@@ -1,0 +1,35 @@
+# com/lenzetech/quartzlamp/colorful_ui/mode.setModeByIndex(I)V
+[2f9a2c] com.lenzetech.quartzlamp.colorful_ui.mode.setModeByIndex:(I)V
+0000: new-instance v0, Ljava/lang/StringBuilder; // type@1060
+0002: invoke-direct {v0}, Ljava/lang/StringBuilder;.<init>:()V // method@8668
+0005: const-string v1, "=" // string@1318
+0007: invoke-virtual {v0, v1}, Ljava/lang/StringBuilder;.append:(Ljava/lang/String;)Ljava/lang/StringBuilder; // method@8674
+000a: invoke-virtual {v0, v6}, Ljava/lang/StringBuilder;.append:(I)Ljava/lang/StringBuilder; // method@866f
+000d: invoke-virtual {v0}, Ljava/lang/StringBuilder;.toString:()Ljava/lang/String; // method@867e
+0010: move-result-object v0
+0011: const-string v1, "modeIndex" // string@9bd3
+0013: invoke-static {v1, v0}, Landroid/util/Log;.d:(Ljava/lang/String;Ljava/lang/String;)I // method@07cc
+0016: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+0019: move-result-object v0
+001a: const/4 v1, #int 6 // #6
+001b: new-array v2, v1, [B // type@180e
+001d: const/4 v3, #int 0 // #0
+001e: const/16 v4, #int -68 // #ffbc
+0020: aput-byte v4, v2, v3
+0022: const/4 v3, #int 1 // #1
+0023: aput-byte v1, v2, v3
+0025: const/4 v1, #int 2 // #2
+0026: aput-byte v1, v2, v1
+0028: div-int/lit16 v1, v6, #int 255 // #00ff
+002a: int-to-byte v1, v1
+002b: const/4 v3, #int 3 // #3
+002c: aput-byte v1, v2, v3
+002e: rem-int/lit16 v6, v6, #int 255 // #00ff
+0030: int-to-byte v6, v6
+0031: const/4 v1, #int 4 // #4
+0032: aput-byte v6, v2, v1
+0034: const/4 v6, #int 5 // #5
+0035: const/16 v1, #int 85 // #55
+0037: aput-byte v1, v2, v6
+0039: invoke-virtual {v0, v2}, Lcom/lenzetech/quartzlamp/application/MyApplication;.write:([B)V // method@8233
+003c: return-void

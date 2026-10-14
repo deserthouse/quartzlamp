@@ -1,0 +1,58 @@
+# com/lenzetech/quartzlamp/colorful_ui/color.changClor_03()V
+[2f7820] com.lenzetech.quartzlamp.colorful_ui.color.changClor_03:()V
+0000: iget-object v0, v9, Lcom/lenzetech/quartzlamp/colorful_ui/color;.colorArray:[I // field@8e48
+0002: const/4 v1, #int 2 // #2
+0003: aget v0, v0, v1
+0005: mul-int/lit8 v0, v0, #int 100 // #64
+0007: div-int/lit16 v0, v0, #int 255 // #00ff
+0009: new-instance v2, Ljava/lang/StringBuilder; // type@1060
+000b: invoke-direct {v2}, Ljava/lang/StringBuilder;.<init>:()V // method@8668
+000e: const-string v3, "R" // string@4b0a
+0010: invoke-virtual {v2, v3}, Ljava/lang/StringBuilder;.append:(Ljava/lang/String;)Ljava/lang/StringBuilder; // method@8674
+0013: invoke-virtual {v2, v0}, Ljava/lang/StringBuilder;.append:(I)Ljava/lang/StringBuilder; // method@866f
+0016: invoke-virtual {v2}, Ljava/lang/StringBuilder;.toString:()Ljava/lang/String; // method@867e
+0019: move-result-object v2
+001a: const-string v3, "黑白" // string@bf74
+001c: invoke-static {v3, v2}, Landroid/util/Log;.e:(Ljava/lang/String;Ljava/lang/String;)I // method@07ce
+001f: invoke-static {v0, v0, v0}, Lcom/lenzetech/quartzlamp/utils/RgbToHsv;.rgbToHsv:(III)[F // method@8352
+0022: move-result-object v0
+0023: const/4 v2, #int 0 // #0
+0024: aget v3, v0, v2
+0026: float-to-int v3, v3
+0027: const/4 v4, #int 1 // #1
+0028: aget v0, v0, v4
+002a: float-to-int v0, v0
+002b: mul-int/lit16 v0, v0, #int 1000 // #03e8
+002d: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+0030: move-result-object v5
+0031: const/16 v6, #int 10 // #a
+0033: new-array v6, v6, [B // type@180e
+0035: const/16 v7, #int -68 // #ffbc
+0037: aput-byte v7, v6, v2
+0039: const/4 v7, #int 4 // #4
+003a: aput-byte v7, v6, v4
+003c: const/4 v4, #int 6 // #6
+003d: aput-byte v4, v6, v1
+003f: div-int/lit16 v1, v3, #int 256 // #0100
+0041: int-to-byte v1, v1
+0042: const/4 v8, #int 3 // #3
+0043: aput-byte v1, v6, v8
+0045: rem-int/lit16 v3, v3, #int 256 // #0100
+0047: int-to-byte v1, v3
+0048: aput-byte v1, v6, v7
+004a: div-int/lit16 v1, v0, #int 256 // #0100
+004c: int-to-byte v1, v1
+004d: const/4 v3, #int 5 // #5
+004e: aput-byte v1, v6, v3
+0050: rem-int/lit16 v0, v0, #int 256 // #0100
+0052: int-to-byte v0, v0
+0053: aput-byte v0, v6, v4
+0055: const/4 v0, #int 7 // #7
+0056: aput-byte v2, v6, v0
+0058: const/16 v0, #int 8 // #8
+005a: aput-byte v2, v6, v0
+005c: const/16 v0, #int 9 // #9
+005e: const/16 v1, #int 85 // #55
+0060: aput-byte v1, v6, v0
+0062: invoke-virtual {v5, v6}, Lcom/lenzetech/quartzlamp/application/MyApplication;.write:([B)V // method@8233
+0065: return-void

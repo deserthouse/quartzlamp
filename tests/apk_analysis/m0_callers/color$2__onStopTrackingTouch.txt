@@ -1,0 +1,41 @@
+# com/lenzetech/quartzlamp/colorful_ui/color$2.onStopTrackingTouch(Landroid/widget/SeekBar;)V
+[2f6c30] com.lenzetech.quartzlamp.colorful_ui.color$2.onStopTrackingTouch:(Landroid/widget/SeekBar;)V
+0000: invoke-virtual {v8}, Landroid/widget/SeekBar;.getProgress:()I // method@0f08
+0003: move-result v8
+0004: const/4 v0, #int 3 // #3
+0005: if-ge v8, v0, 0008 // +0003
+0007: const/4 v8, #int 3 // #3
+0008: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+000b: move-result-object v1
+000c: const/16 v2, #int 10 // #a
+000e: new-array v2, v2, [B // type@180e
+0010: const/16 v3, #int -68 // #ffbc
+0012: const/4 v4, #int 0 // #0
+0013: aput-byte v3, v2, v4
+0015: const/4 v3, #int 1 // #1
+0016: const/4 v5, #int 5 // #5
+0017: aput-byte v5, v2, v3
+0019: const/4 v3, #int 2 // #2
+001a: const/4 v6, #int 6 // #6
+001b: aput-byte v6, v2, v3
+001d: div-int/lit16 v3, v8, #int 255 // #00ff
+001f: int-to-byte v3, v3
+0020: aput-byte v3, v2, v0
+0022: const/4 v0, #int 4 // #4
+0023: rem-int/lit16 v3, v8, #int 255 // #00ff
+0025: int-to-byte v3, v3
+0026: aput-byte v3, v2, v0
+0028: aput-byte v4, v2, v5
+002a: aput-byte v4, v2, v6
+002c: const/4 v0, #int 7 // #7
+002d: aput-byte v4, v2, v0
+002f: const/16 v0, #int 8 // #8
+0031: aput-byte v4, v2, v0
+0033: const/16 v0, #int 9 // #9
+0035: const/16 v3, #int 85 // #55
+0037: aput-byte v3, v2, v0
+0039: invoke-virtual {v1, v2}, Lcom/lenzetech/quartzlamp/application/MyApplication;.write:([B)V // method@8233
+003c: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+003f: move-result-object v0
+0040: iput v8, v0, Lcom/lenzetech/quartzlamp/application/MyApplication;.mingDu:I // field@8e3d
+0042: return-void

@@ -1,0 +1,52 @@
+# com/lenzetech/quartzlamp/colorful_ui/color.changClor_02()V
+[2f7764] com.lenzetech.quartzlamp.colorful_ui.color.changClor_02:()V
+0000: iget-object v0, v9, Lcom/lenzetech/quartzlamp/colorful_ui/color;.colorArray:[I // field@8e48
+0002: const/4 v1, #int 2 // #2
+0003: aget v0, v0, v1
+0005: mul-int/lit8 v0, v0, #int 100 // #64
+0007: const/16 v2, #int 255 // #ff
+0009: div-int/2addr v0, v2
+000a: rsub-int/lit8 v3, v0, #int 100 // #64
+000c: invoke-static {v3, v0, v2}, Lcom/lenzetech/quartzlamp/utils/RgbToHsv;.rgbToHsv:(III)[F // method@8352
+000f: move-result-object v0
+0010: const/4 v2, #int 0 // #0
+0011: aget v3, v0, v2
+0013: float-to-int v3, v3
+0014: const/4 v4, #int 1 // #1
+0015: aget v0, v0, v4
+0017: const/high16 v5, #int 1148846080 // #447a
+0019: mul-float v0, v0, v5
+001b: float-to-int v0, v0
+001c: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+001f: move-result-object v5
+0020: const/16 v6, #int 10 // #a
+0022: new-array v6, v6, [B // type@180e
+0024: const/16 v7, #int -68 // #ffbc
+0026: aput-byte v7, v6, v2
+0028: const/4 v7, #int 4 // #4
+0029: aput-byte v7, v6, v4
+002b: const/4 v4, #int 6 // #6
+002c: aput-byte v4, v6, v1
+002e: div-int/lit16 v1, v3, #int 256 // #0100
+0030: int-to-byte v1, v1
+0031: const/4 v8, #int 3 // #3
+0032: aput-byte v1, v6, v8
+0034: rem-int/lit16 v3, v3, #int 256 // #0100
+0036: int-to-byte v1, v3
+0037: aput-byte v1, v6, v7
+0039: div-int/lit16 v1, v0, #int 256 // #0100
+003b: int-to-byte v1, v1
+003c: const/4 v3, #int 5 // #5
+003d: aput-byte v1, v6, v3
+003f: rem-int/lit16 v0, v0, #int 256 // #0100
+0041: int-to-byte v0, v0
+0042: aput-byte v0, v6, v4
+0044: const/4 v0, #int 7 // #7
+0045: aput-byte v2, v6, v0
+0047: const/16 v0, #int 8 // #8
+0049: aput-byte v2, v6, v0
+004b: const/16 v0, #int 9 // #9
+004d: const/16 v1, #int 85 // #55
+004f: aput-byte v1, v6, v0
+0051: invoke-virtual {v5, v6}, Lcom/lenzetech/quartzlamp/application/MyApplication;.write:([B)V // method@8233
+0054: return-void

@@ -1,0 +1,47 @@
+# com/lenzetech/quartzlamp/colorful_ui/mic$1.onCheckedChanged(Landroid/widget/RadioGroup;I)V
+[2f81e4] com.lenzetech.quartzlamp.colorful_ui.mic$1.onCheckedChanged:(Landroid/widget/RadioGroup;I)V
+0000: const/4 v2, #int 5 // #5
+0001: packed-switch v3, 00000056 // +00000055
+0004: goto 0055 // +0051
+0005: iget-object v3, v1, Lcom/lenzetech/quartzlamp/colorful_ui/mic$1;.this$0:Lcom/lenzetech/quartzlamp/colorful_ui/mic; // field@8e63
+0007: invoke-static {v3}, Lcom/lenzetech/quartzlamp/colorful_ui/mic;.access$000:(Lcom/lenzetech/quartzlamp/colorful_ui/mic;)V // method@826f
+000a: iget-object v3, v1, Lcom/lenzetech/quartzlamp/colorful_ui/mic$1;.this$0:Lcom/lenzetech/quartzlamp/colorful_ui/mic; // field@8e63
+000c: invoke-static {v3}, Lcom/lenzetech/quartzlamp/colorful_ui/mic;.access$100:(Lcom/lenzetech/quartzlamp/colorful_ui/mic;)Landroid/widget/RadioGroup; // method@8270
+000f: move-result-object v3
+0010: const/4 v0, #int 4 // #4
+0011: invoke-virtual {v3, v0}, Landroid/widget/RadioGroup;.setVisibility:(I)V // method@0ed4
+0014: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+0017: move-result-object v3
+0018: new-array v2, v2, [B // type@180e
+001a: fill-array-data v2, 0000005e // +00000044
+001d: invoke-virtual {v3, v2}, Lcom/lenzetech/quartzlamp/application/MyApplication;.write:([B)V // method@8233
+0020: goto 0055 // +0035
+0021: iget-object v3, v1, Lcom/lenzetech/quartzlamp/colorful_ui/mic$1;.this$0:Lcom/lenzetech/quartzlamp/colorful_ui/mic; // field@8e63
+0023: invoke-static {v3}, Lcom/lenzetech/quartzlamp/colorful_ui/mic;.access$200:(Lcom/lenzetech/quartzlamp/colorful_ui/mic;)V // method@8271
+0026: iget-object v3, v1, Lcom/lenzetech/quartzlamp/colorful_ui/mic$1;.this$0:Lcom/lenzetech/quartzlamp/colorful_ui/mic; // field@8e63
+0028: invoke-static {v3}, Lcom/lenzetech/quartzlamp/colorful_ui/mic;.access$100:(Lcom/lenzetech/quartzlamp/colorful_ui/mic;)Landroid/widget/RadioGroup; // method@8270
+002b: move-result-object v3
+002c: invoke-virtual {v3}, Landroid/widget/RadioGroup;.getCheckedRadioButtonId:()I // method@0ed2
+002f: move-result v3
+0030: const v0, #float 1.82111e+38 // #7f09014b
+0033: if-eq v3, v0, 003f // +000c
+0035: iget-object v2, v1, Lcom/lenzetech/quartzlamp/colorful_ui/mic$1;.this$0:Lcom/lenzetech/quartzlamp/colorful_ui/mic; // field@8e63
+0037: invoke-static {v2}, Lcom/lenzetech/quartzlamp/colorful_ui/mic;.access$100:(Lcom/lenzetech/quartzlamp/colorful_ui/mic;)Landroid/widget/RadioGroup; // method@8270
+003a: move-result-object v2
+003b: invoke-virtual {v2, v0}, Landroid/widget/RadioGroup;.check:(I)V // method@0ed1
+003e: goto 004b // +000d
+003f: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+0042: move-result-object v3
+0043: new-array v2, v2, [B // type@180e
+0045: fill-array-data v2, 00000066 // +00000021
+0048: invoke-virtual {v3, v2}, Lcom/lenzetech/quartzlamp/application/MyApplication;.write:([B)V // method@8233
+004b: iget-object v2, v1, Lcom/lenzetech/quartzlamp/colorful_ui/mic$1;.this$0:Lcom/lenzetech/quartzlamp/colorful_ui/mic; // field@8e63
+004d: invoke-static {v2}, Lcom/lenzetech/quartzlamp/colorful_ui/mic;.access$100:(Lcom/lenzetech/quartzlamp/colorful_ui/mic;)Landroid/widget/RadioGroup; // method@8270
+0050: move-result-object v2
+0051: const/4 v3, #int 0 // #0
+0052: invoke-virtual {v2, v3}, Landroid/widget/RadioGroup;.setVisibility:(I)V // method@0ed4
+0055: return-void
+0056: packed-switch-data (8 units)
+005e: array-data (7 units)
+0065: nop // spacer
+0066: array-data (7 units)

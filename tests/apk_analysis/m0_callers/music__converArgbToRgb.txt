@@ -1,0 +1,102 @@
+# com/lenzetech/quartzlamp/colorful_ui/music.converArgbToRgb(I)V
+[2fa3a4] com.lenzetech.quartzlamp.colorful_ui.music.converArgbToRgb:(I)V
+0000: iget-boolean v0, v9, Lcom/lenzetech/quartzlamp/colorful_ui/music;.isMusicRhy:Z // field@8e95
+0002: if-nez v0, 0005 // +0003
+0004: return-void
+0005: const/4 v0, #int 3 // #3
+0006: new-array v1, v0, [B // type@180e
+0008: const/high16 v2, #int 16711680 // #ff
+000a: and-int/2addr v2, v10
+000b: shr-int/lit8 v2, v2, #int 16 // #10
+000d: int-to-byte v2, v2
+000e: const/4 v3, #int 0 // #0
+000f: aput-byte v2, v1, v3
+0011: const v2, #float 9.14768e-41 // #0000ff00
+0014: and-int/2addr v2, v10
+0015: const/16 v4, #int 8 // #8
+0017: shr-int/2addr v2, v4
+0018: int-to-byte v2, v2
+0019: const/4 v5, #int 1 // #1
+001a: aput-byte v2, v1, v5
+001c: and-int/lit16 v10, v10, #int 255 // #00ff
+001e: int-to-byte v10, v10
+001f: const/4 v2, #int 2 // #2
+0020: aput-byte v10, v1, v2
+0022: new-instance v10, Ljava/lang/StringBuilder; // type@1060
+0024: invoke-direct {v10}, Ljava/lang/StringBuilder;.<init>:()V // method@8668
+0027: const-string v6, "=" // string@1318
+0029: invoke-virtual {v10, v6}, Ljava/lang/StringBuilder;.append:(Ljava/lang/String;)Ljava/lang/StringBuilder; // method@8674
+002c: aget-byte v6, v1, v3
+002e: invoke-virtual {v10, v6}, Ljava/lang/StringBuilder;.append:(I)Ljava/lang/StringBuilder; // method@866f
+0031: invoke-virtual {v10}, Ljava/lang/StringBuilder;.toString:()Ljava/lang/String; // method@867e
+0034: move-result-object v10
+0035: const-string v6, "R" // string@4b0a
+0037: invoke-static {v6, v10}, Landroid/util/Log;.e:(Ljava/lang/String;Ljava/lang/String;)I // method@07ce
+003a: new-instance v10, Ljava/lang/StringBuilder; // type@1060
+003c: invoke-direct {v10}, Ljava/lang/StringBuilder;.<init>:()V // method@8668
+003f: aget-byte v6, v1, v5
+0041: invoke-virtual {v10, v6}, Ljava/lang/StringBuilder;.append:(I)Ljava/lang/StringBuilder; // method@866f
+0044: const-string v6, "" // string@0000
+0046: invoke-virtual {v10, v6}, Ljava/lang/StringBuilder;.append:(Ljava/lang/String;)Ljava/lang/StringBuilder; // method@8674
+0049: invoke-virtual {v10}, Ljava/lang/StringBuilder;.toString:()Ljava/lang/String; // method@867e
+004c: move-result-object v10
+004d: const-string v7, "G" // string@24c7
+004f: invoke-static {v7, v10}, Landroid/util/Log;.e:(Ljava/lang/String;Ljava/lang/String;)I // method@07ce
+0052: new-instance v10, Ljava/lang/StringBuilder; // type@1060
+0054: invoke-direct {v10}, Ljava/lang/StringBuilder;.<init>:()V // method@8668
+0057: aget-byte v7, v1, v2
+0059: invoke-virtual {v10, v7}, Ljava/lang/StringBuilder;.append:(I)Ljava/lang/StringBuilder; // method@866f
+005c: invoke-virtual {v10, v6}, Ljava/lang/StringBuilder;.append:(Ljava/lang/String;)Ljava/lang/StringBuilder; // method@8674
+005f: invoke-virtual {v10}, Ljava/lang/StringBuilder;.toString:()Ljava/lang/String; // method@867e
+0062: move-result-object v10
+0063: const-string v6, "B" // string@17a9
+0065: invoke-static {v6, v10}, Landroid/util/Log;.e:(Ljava/lang/String;Ljava/lang/String;)I // method@07ce
+0068: aget-byte v10, v1, v3
+006a: if-eqz v10, 00be // +0054
+006c: aget-byte v10, v1, v5
+006e: if-eqz v10, 00be // +0050
+0070: aget-byte v10, v1, v5
+0072: if-nez v10, 0075 // +0003
+0074: goto 00be // +004a
+0075: aget-byte v10, v1, v3
+0077: aget-byte v6, v1, v5
+0079: aget-byte v1, v1, v2
+007b: invoke-static {v10, v6, v1}, Lcom/lenzetech/quartzlamp/utils/RgbToHsv;.rgbToHsv:(III)[F // method@8352
+007e: move-result-object v10
+007f: aget v1, v10, v3
+0081: float-to-int v1, v1
+0082: aget v10, v10, v5
+0084: const/high16 v6, #int 1148846080 // #447a
+0086: mul-float v10, v10, v6
+0088: float-to-int v10, v10
+0089: invoke-static {}, Lcom/lenzetech/quartzlamp/application/MyApplication;.getInstance:()Lcom/lenzetech/quartzlamp/application/MyApplication; // method@8229
+008c: move-result-object v6
+008d: const/16 v7, #int 10 // #a
+008f: new-array v7, v7, [B // type@180e
+0091: const/16 v8, #int -68 // #ffbc
+0093: aput-byte v8, v7, v3
+0095: const/16 v8, #int 9 // #9
+0097: aput-byte v8, v7, v5
+0099: const/4 v5, #int 6 // #6
+009a: aput-byte v5, v7, v2
+009c: div-int/lit16 v2, v1, #int 255 // #00ff
+009e: int-to-byte v2, v2
+009f: aput-byte v2, v7, v0
+00a1: const/4 v0, #int 4 // #4
+00a2: rem-int/lit16 v1, v1, #int 255 // #00ff
+00a4: int-to-byte v1, v1
+00a5: aput-byte v1, v7, v0
+00a7: const/4 v0, #int 5 // #5
+00a8: div-int/lit16 v1, v10, #int 255 // #00ff
+00aa: int-to-byte v1, v1
+00ab: aput-byte v1, v7, v0
+00ad: rem-int/lit16 v10, v10, #int 255 // #00ff
+00af: int-to-byte v10, v10
+00b0: aput-byte v10, v7, v5
+00b2: const/4 v10, #int 7 // #7
+00b3: aput-byte v3, v7, v10
+00b5: aput-byte v3, v7, v4
+00b7: const/16 v10, #int 85 // #55
+00b9: aput-byte v10, v7, v8
+00bb: invoke-virtual {v6, v7}, Lcom/lenzetech/quartzlamp/application/MyApplication;.write:([B)V // method@8233
+00be: return-void
