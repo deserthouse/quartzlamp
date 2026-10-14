@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 品牌图标方向占位：石英切面 × 声波（M7 定稿前先用几何占位） -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- 石英晶体切面 -->
+    <path
+        android:fillColor="#FFB868"
+        android:pathData="M54,22 L76,44 L68,84 L40,84 L32,44 Z" />
+    <path
+        android:fillColor="#FFE0B0"
+        android:pathData="M54,22 L76,44 L54,54 Z" />
+    <path
+        android:fillColor="#C97F2E"
+        android:pathData="M54,22 L32,44 L54,54 Z" />
+    <!-- 声波纹 -->
+    <path
+        android:strokeColor="#1A1207"
+        android:strokeWidth="3"
+        android:fillColor="#00000000"
+        android:pathData="M46,62 Q50,58 54,62 Q58,66 62,62" />
+    <path
+        android:strokeColor="#1A1207"
+        android:strokeWidth="3"
+        android:fillColor="#00000000"
+        android:pathData="M42,70 Q50,62 54,70 Q58,78 66,70" />
+</vector>
