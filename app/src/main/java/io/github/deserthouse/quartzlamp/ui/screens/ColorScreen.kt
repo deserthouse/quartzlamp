@@ -89,7 +89,8 @@ fun ColorScreen(vm: AppViewModel) {
         Text("亮度 ${color.bright}", style = MaterialTheme.typography.titleMedium)
         Slider(
             value = color.bright.toFloat(),
-            onValueChange = { vm.setBrightness(it.toInt()) },
+            onValueChange = { vm.updateBrightness(it.toInt()) },
+            onValueChangeFinished = { vm.sendBrightness() },
             valueRange = 0f..1000f
         )
         Spacer(Modifier.height(8.dp))

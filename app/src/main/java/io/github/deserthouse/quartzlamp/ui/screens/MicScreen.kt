@@ -100,7 +100,8 @@ fun MicScreen(vm: AppViewModel) {
         Text("灵敏度 ${mic.sensitivity}", style = MaterialTheme.typography.titleMedium)
         Slider(
             value = mic.sensitivity.toFloat(),
-            onValueChange = { vm.setMicSensitivity(it.toInt()) },
+            onValueChange = { vm.updateMicSensitivity(it.toInt()) },
+            onValueChangeFinished = { vm.sendMicSensitivity() },
             valueRange = 0f..100f
         )
 

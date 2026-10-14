@@ -90,6 +90,7 @@ fun MusicScreen(vm: AppViewModel) {
         if (!reactive) return
         val v = Visualizer(sessionId).apply {
             captureSize = Visualizer.getCaptureSizeRange()[0]
+            // rate 单位 mHz：max/2 = 10Hz 回调（此前误用 captureSize/2=64mHz，~15s 才回调一次）
             setDataCaptureListener(
                 object : Visualizer.OnDataCaptureListener {
                     override fun onWaveFormDataCapture(viz: Visualizer, waveform: ByteArray, samplingRate: Int) {
@@ -106,7 +107,7 @@ fun MusicScreen(vm: AppViewModel) {
                     }
                     override fun onFftDataCapture(viz: Visualizer, fft: ByteArray, samplingRate: Int) {}
                 },
-                Visualizer.getCaptureSizeRange()[0] / 2, true, false
+                Visualizer.getMaxCaptureRate() / 2, true, false
             )
             enabled = true
         }
@@ -121,7 +122,11 @@ fun MusicScreen(vm: AppViewModel) {
             player.prepare()
             player.start()
             playing = true
-            startReactive(player.audioSessionId)
+            // Visualizer 失败不影响播放本身（部分设备 HAL 不支持效果捕获）
+            try {
+                startReactive(player.audioSessionId)
+            } catch (_: Exception) {
+            }
         } catch (_: Exception) {
             playing = false
         }

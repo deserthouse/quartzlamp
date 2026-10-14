@@ -73,13 +73,15 @@ fun ModeScreen(vm: AppViewModel) {
         Text("速度 ${mode.speed}", style = MaterialTheme.typography.titleMedium)
         Slider(
             value = mode.speed.toFloat(),
-            onValueChange = { vm.setSpeed(it.toInt(), quandeng) },
+            onValueChange = { vm.updateSpeed(it.toInt()) },
+            onValueChangeFinished = { vm.sendSpeed(quandeng) },
             valueRange = 0f..100f
         )
         Text("灵敏度 ${mode.sensitivity}", style = MaterialTheme.typography.titleMedium)
         Slider(
             value = mode.sensitivity.toFloat(),
-            onValueChange = { vm.setSensitivity(it.toInt()) },
+            onValueChange = { vm.updateSensitivity(it.toInt()) },
+            onValueChangeFinished = { vm.sendSensitivity() },
             valueRange = 0f..100f
         )
     }

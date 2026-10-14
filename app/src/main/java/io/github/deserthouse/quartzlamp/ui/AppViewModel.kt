@@ -66,6 +66,10 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
     private val _timer = MutableStateFlow(TimerUiState())
     val timer: StateFlow<TimerUiState> = _timer
 
+    /** 读回回填信号：+1 触发 UI 用 _timer 重置本地编辑态 */
+    private val _timerReadTick = MutableStateFlow(0)
+    val timerReadTick: StateFlow<Int> = _timerReadTick
+
     fun startScan() = lamp.startScan()
     fun stopScan() = lamp.stopScan()
     fun connect(l: ScannedLamp) = lamp.connect(l)
@@ -81,25 +85,30 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
         if (send) lamp.send(LampFrames.colorStatic(hue, sat))
     }
 
-    fun setBrightness(v: Int) {
+    fun updateBrightness(v: Int) {
+        // 拖动中只更新本地状态；sendBrightness() 松手时发一帧（防写队列洪泛，对齐厂商行为）
         _color.value = _color.value.copy(bright = v)
-        lamp.send(LampFrames.brightness(v))
     }
+
+    fun sendBrightness() = lamp.send(LampFrames.brightness(_color.value.bright))
 
     fun selectEffect(tab: Int, position: Int, deviceIndex: Int) {
         _mode.value = _mode.value.copy(tab = tab, selected = deviceIndex)
         lamp.send(LampFrames.modeSelect(deviceIndex))
     }
 
-    fun setSpeed(v: Int, quandeng: Boolean) {
+    fun updateSpeed(v: Int) {
         _mode.value = _mode.value.copy(speed = v)
-        lamp.send(LampFrames.speed(v, quandeng))
     }
 
-    fun setSensitivity(v: Int) {
+    fun sendSpeed(quandeng: Boolean) =
+        lamp.send(LampFrames.speed(_mode.value.speed, quandeng))
+
+    fun updateSensitivity(v: Int) {
         _mode.value = _mode.value.copy(sensitivity = v)
-        lamp.send(LampFrames.sensitivity(v))
     }
+
+    fun sendSensitivity() = lamp.send(LampFrames.sensitivity(_mode.value.sensitivity))
 
     fun setMicSource(phoneMic: Boolean) {
         _mic.value = _mic.value.copy(phoneMic = phoneMic)
@@ -111,10 +120,12 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
         lamp.send(LampFrames.micType(type))
     }
 
-    fun setMicSensitivity(v: Int) {
+    fun updateMicSensitivity(v: Int) {
         _mic.value = _mic.value.copy(sensitivity = v)
-        lamp.send(LampFrames.micSensitivity(v))
     }
+
+    fun sendMicSensitivity() =
+        lamp.send(LampFrames.micSensitivity(_mic.value.sensitivity))
 
     /** 手机麦 dB → 律动变色（帧#6） */
     fun sendReactive(hue: Int, sat: Float) = lamp.send(LampFrames.reactiveColor(hue, sat))
@@ -134,7 +145,20 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
     }
 
     fun queryTimer(open: Boolean, onResult: (LampFrames.TimerInfo?) -> Unit) =
-        lamp.queryTimer(open) { bytes -> onResult(bytes?.let(LampFrames::parseTimerRead)) }
+        lamp.queryTimer(open) { bytes ->
+            val info = bytes?.let(LampFrames::parseTimerRead)
+            if (info != null && info.isSet) {
+                // 回填到 VM 状态并 bump 信号，UI 据此重置本地编辑态
+                val weeks = List(7) { i -> (info.weekBits shr i) and 1 == 1 }
+                _timer.value = if (open) {
+                    _timer.value.copy(openHour = info.hour, openMinute = info.minute, openWeeks = weeks)
+                } else {
+                    _timer.value.copy(closeHour = info.hour, closeMinute = info.minute, closeWeeks = weeks)
+                }
+                _timerReadTick.value += 1
+            }
+            onResult(info)
+        }
 
     private fun weekBits(weeks: List<Boolean>): Int {
         var b = 0

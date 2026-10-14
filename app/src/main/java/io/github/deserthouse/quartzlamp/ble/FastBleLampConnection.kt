@@ -80,6 +80,7 @@ class FastBleLampConnection(private val app: android.app.Application) : LampConn
 
     override fun stopScan() {
         bleManager.cancelScan()
+        // 只在扫描态复位；不得误杀已建立的连接（离开设备页会触发 onDispose）
         if (_state.value == ConnState.SCANNING) _state.value = ConnState.DISCONNECTED
     }
 

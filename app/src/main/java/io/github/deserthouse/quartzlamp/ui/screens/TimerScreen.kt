@@ -31,6 +31,7 @@ private val weekLabels = listOf("一", "二", "三", "四", "五", "六", "日")
 @Composable
 fun TimerScreen(vm: AppViewModel) {
     val timer by vm.timer.collectAsState()
+    val readTick by vm.timerReadTick.collectAsState()
 
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
@@ -42,6 +43,7 @@ fun TimerScreen(vm: AppViewModel) {
             minute = timer.openMinute,
             enabled = timer.openEnabled,
             weeks = timer.openWeeks,
+            readTick = readTick,
             onApply = vm::updateTimerOpen,
             onRead = { vm.queryTimer(true) {} }
         )
@@ -51,6 +53,7 @@ fun TimerScreen(vm: AppViewModel) {
             minute = timer.closeMinute,
             enabled = timer.closeEnabled,
             weeks = timer.closeWeeks,
+            readTick = readTick,
             onApply = vm::updateTimerClose,
             onRead = { vm.queryTimer(false) {} }
         )
@@ -65,13 +68,15 @@ private fun TimerSection(
     minute: Int,
     enabled: Boolean,
     weeks: List<Boolean>,
+    readTick: Int,
     onApply: (Int, Int, Boolean, List<Boolean>) -> Unit,
     onRead: () -> Unit
 ) {
-    var h by remember { mutableIntStateOf(hour) }
-    var m by remember { mutableIntStateOf(minute) }
-    var en by remember { mutableStateOf(enabled) }
-    var wk by remember { mutableStateOf(weeks) }
+    // readTick 变化 = 从灯读回成功 → 用 VM 回填值重置本地编辑态
+    var h by remember(readTick) { mutableIntStateOf(hour) }
+    var m by remember(readTick) { mutableIntStateOf(minute) }
+    var en by remember(readTick) { mutableStateOf(enabled) }
+    var wk by remember(readTick) { mutableStateOf(weeks) }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {

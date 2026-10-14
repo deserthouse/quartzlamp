@@ -36,6 +36,7 @@ class FakeLampConnection : LampConnection {
 
     override fun startScan() {
         if (_state.value != ConnState.DISCONNECTED) return
+        _scanned.value = emptyList()
         _state.value = ConnState.SCANNING
         scope.launch {
             delay(2000)
@@ -46,7 +47,8 @@ class FakeLampConnection : LampConnection {
     }
 
     override fun stopScan() {
-        _state.value = ConnState.DISCONNECTED
+        // 只在扫描态复位；不得误杀已建立的连接（离开设备页会触发 onDispose）
+        if (_state.value == ConnState.SCANNING) _state.value = ConnState.DISCONNECTED
     }
 
     override fun connect(lamp: ScannedLamp) {
