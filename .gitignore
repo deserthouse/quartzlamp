@@ -1,0 +1,22 @@
+# Gradle / build
+.gradle/
+build/
+app/build/
+local.properties
+
+# IDE
+.idea/
+*.iml
+
+# 厂商版权物——永不入库（再生命令见 tests/apk_analysis/README.md）
+*.apk
+tests/apk_analysis/extracted/
+tests/apk_analysis/dexdump*.txt
+
+# 大体积中间产物
+*.keystore
+*.jks
+
+# 系统杂项
+.DS_Store
+Thumbs.db
