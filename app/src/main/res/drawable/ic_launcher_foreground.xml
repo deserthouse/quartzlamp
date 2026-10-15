@@ -1,29 +1,62 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- 品牌图标方向占位：石英切面 × 声波（M7 定稿前先用几何占位） -->
+<!-- 正式图标（W4）：石英晶体切面 × 声波——三面拉开对比 + 中面微渐变 + 声波加粗 4.5dp（T9 建议） -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- 石英晶体切面 -->
+    <!-- 石英晶体切面（安全区内） -->
+    <!-- 左上受光亮面 -->
     <path
-        android:fillColor="#FFB868"
-        android:pathData="M54,22 L76,44 L68,84 L40,84 L32,44 Z" />
+        android:fillColor="#8F93F7"
+        android:pathData="M54,26 L54,54 L34,46 Z" />
+    <!-- 右上中面（微渐变） -->
+    <path android:pathData="M54,26 L74,46 L54,54 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:startX="54"
+                android:startY="26"
+                android:endX="74"
+                android:endY="54"
+                android:type="linear">
+                <item android:offset="0.0" android:color="#6A6DF0" />
+                <item android:offset="1.0" android:color="#4A4CC9" />
+            </gradient>
+        </aapt:attr>
+    </path>
+    <!-- 下部暗面 -->
     <path
-        android:fillColor="#FFE0B0"
-        android:pathData="M54,22 L76,44 L54,54 Z" />
+        android:fillColor="#33349E"
+        android:pathData="M34,46 L54,54 L46,82 L41,82 Z" />
     <path
-        android:fillColor="#C97F2E"
-        android:pathData="M54,22 L32,44 L54,54 Z" />
-    <!-- 声波纹 -->
+        android:fillColor="#3E40B5"
+        android:pathData="M54,54 L74,46 L67,82 L46,82 Z" />
+    <!-- 高光棱线 -->
     <path
-        android:strokeColor="#1A1207"
-        android:strokeWidth="3"
+        android:strokeColor="#FFFFFF"
+        android:strokeAlpha="0.45"
+        android:strokeWidth="1.6"
         android:fillColor="#00000000"
-        android:pathData="M46,62 Q50,58 54,62 Q58,66 62,62" />
+        android:pathData="M54,26 L54,54" />
+    <!-- 声波纹（加粗 4.5，亮紫白） -->
     <path
-        android:strokeColor="#1A1207"
-        android:strokeWidth="3"
+        android:strokeColor="#E2E1FF"
+        android:strokeWidth="4.5"
+        android:strokeLineCap="round"
         android:fillColor="#00000000"
-        android:pathData="M42,70 Q50,62 54,70 Q58,78 66,70" />
+        android:pathData="M47,58 Q50.5,54.5 54,58 Q57.5,61.5 61,58" />
+    <path
+        android:strokeColor="#E2E1FF"
+        android:strokeWidth="4.5"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M43,66 Q50.5,58.5 54,66 Q57.5,73.5 65,66" />
+    <path
+        android:strokeColor="#BFC3FF"
+        android:strokeAlpha="0.85"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M39,74 Q50.5,62.5 54,74 Q57.5,85.5 69,74" />
 </vector>

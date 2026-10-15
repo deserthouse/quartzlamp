@@ -47,7 +47,7 @@ private fun bluetoothEnabled(context: Context): Boolean =
 
 /** 扫描连接页：BLE 权限门 → 蓝牙开关检测 → 扫描（自动过滤拾音灯广播 22 20）→ 按行连接/断开 */
 @Composable
-fun ScanScreen(vm: AppViewModel) {
+fun ScanScreen(vm: AppViewModel, onAbout: () -> Unit = {}) {
     val context = LocalContext.current
     val state by vm.state.collectAsState()
     val scanned by vm.scanned.collectAsState()
@@ -174,5 +174,8 @@ fun ScanScreen(vm: AppViewModel) {
                 style = MaterialTheme.typography.bodyMedium
             )
         }
+
+        // 关于入口（内容流内；置于底部会与手势区重叠）
+        TextButton(onClick = onAbout) { Text("关于拾音灯") }
     }
 }

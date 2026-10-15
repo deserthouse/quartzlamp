@@ -35,6 +35,7 @@ import androidx.navigation.compose.rememberNavController
 import io.github.deserthouse.quartzlamp.ble.ConnState
 import io.github.deserthouse.quartzlamp.ble.SessionState
 import io.github.deserthouse.quartzlamp.ui.AppViewModel
+import io.github.deserthouse.quartzlamp.ui.screens.AboutScreen
 import io.github.deserthouse.quartzlamp.ui.screens.ColorScreen
 import io.github.deserthouse.quartzlamp.ui.screens.ModeScreen
 import io.github.deserthouse.quartzlamp.ui.screens.RhythmScreen
@@ -48,8 +49,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val app = application as QuartzLampApp
         setContent {
-            QuartzLampTheme {
+            val dynamic by app.dynamicTheme.collectAsState()
+            QuartzLampTheme(dynamicColor = dynamic) {
                 MainScaffold(vm)
             }
         }
@@ -139,7 +142,8 @@ private fun MainScaffold(vm: AppViewModel) {
             composable("mode") { ModeScreen(vm) }
             composable("rhythm") { RhythmScreen(vm) }
             composable("timer") { TimerScreen(vm) }
-            composable("scan") { ScanScreen(vm) }
+            composable("scan") { ScanScreen(vm, onAbout = { nav.navigate("about") }) }
+            composable("about") { AboutScreen() }
         }
     }
 }
