@@ -7,12 +7,14 @@ Lenze Tech「拾音灯」硬件的自有 Android 控制器——Material 3 Expre
 
 ## 功能
 
-- **调色**：色相/饱和度/亮度，8 预设色
-- **模式**：153 种内置灯效（9 分类 × 17 色板）+ 速度/灵敏度
-- **麦克风**：手机麦实时律动 / 外麦模式，四种拾音风格
-- **音乐**：本地曲目播放，Visualizer 频谱驱动律动
-- **定时**：按星期的定时开/关灯，配置存灯端可读回
-- 多灯同步：所有指令广播到全部已连接灯
+- **调色**：色相环取色、饱和度/亮度厚轨道，8 预设色，电源主操作
+- **灯效**：153 种内置灯效（9 分类 × 17），完整原名 + 名称色示意条，速度/灵敏度
+- **律动**：三源切换——手机麦克风 / 灯载麦克风 / 本地音乐（Visualizer 频谱驱动，
+  静音=灯最暗）；四种拾音风格与灵敏度对灯端生效
+- **定时**：按星期的定时开/关灯，配置存灯端、可读回（无"启用"开关——协议无此位，
+  保存即下发、读取"未设置"即清空）
+- **设备**：多灯并行管理，行级连接/断开/重连，指令广播到全部已连接灯；
+  意外断连有限自动重连（3 次 × 4s），主动断开不抢连
 
 ## 技术要点
 
@@ -37,9 +39,16 @@ Release 签名凭据走 `~/.gradle/gradle.properties`（QUARTZLAMP_* 四键）�
 - `docs/acceptance.md` — 验收清单（模拟器已验项 + 真机项 + 协议仲裁项）
 - `project_status.md` — 项目状态
 
-## 声明
+## 声明 / Declaration
 
 - 本项目为个人学习/自用目的对自有硬件的控制器重实现；与 Lenze Tech 无关联，
   未复用其代码与美术资源；灯效名称为功能性描述短语。
+  This is an independent reimplementation of a controller for personally owned hardware,
+  for learning and personal use. Not affiliated with Lenze Tech; no vendor code or assets reused.
+  Effect names are functional descriptive phrases.
 - AI 使用声明：本项目由 AI（ZCode / GLM）在人类需求定义与验收下深度参与开发。
+  AI disclosure: developed with substantial AI assistance (ZCode / GLM) under human
+  direction and acceptance.
 - 软件按"现状"提供，使用后果自负；BLE 指令仅面向该拾音灯硬件。
+  Provided as-is, without warranty of any kind; use at your own risk. BLE commands target
+  this lamp hardware only.

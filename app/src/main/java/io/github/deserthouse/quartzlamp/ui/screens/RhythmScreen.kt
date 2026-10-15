@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.SurroundSound
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
@@ -44,6 +45,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -60,6 +62,7 @@ import androidx.core.content.ContextCompat
 import io.github.deserthouse.quartzlamp.audio.MicEngine
 import io.github.deserthouse.quartzlamp.audio.WaveformLevel
 import io.github.deserthouse.quartzlamp.ui.AppViewModel
+import kotlinx.coroutines.delay
 
 /** 律动屏三源（审查 §6.3：手机麦 / 灯载麦 / 本地音乐） */
 private enum class RhythmSource(val label: String) {
@@ -252,11 +255,27 @@ private fun MusicPanel(vm: AppViewModel) {
 
     val player = remember { MediaPlayer() }
     val visualizer = remember { arrayOf<Visualizer?>(null) }
+    var positionMs by remember { mutableStateOf(0) }
+    var durationMs by remember { mutableStateOf(0) }
 
+    // 播完回落：状态归"未播放"、律动停（审查对比表缺口补齐）
     DisposableEffect(Unit) {
+        player.setOnCompletionListener {
+            playing = false
+            positionMs = durationMs
+            visualizer[0]?.enabled = false
+        }
         onDispose {
             visualizer[0]?.release()
             player.release()
+        }
+    }
+
+    // 进度轮询：仅播放中驱动（500ms）
+    LaunchedEffect(playing, current?.id) {
+        while (playing) {
+            positionMs = try { player.currentPosition } catch (_: IllegalStateException) { 0 }
+            delay(500)
         }
     }
 
@@ -289,11 +308,14 @@ private fun MusicPanel(vm: AppViewModel) {
             player.prepare()
             player.start()
             playing = true
+            durationMs = try { player.duration } catch (_: Exception) { 0 }
             try { startReactive(player.audioSessionId) } catch (_: Exception) {}
         } catch (_: Exception) {
             playing = false
         }
     }
+
+    fun fmt(ms: Int): String = "%d:%02d".format(ms / 60000, (ms / 1000) % 60)
 
     Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceVariant) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -329,6 +351,19 @@ private fun MusicPanel(vm: AppViewModel) {
                         else visualizer[0]?.enabled = it && playing
                     }
                 )
+            }
+
+            // 进度（只读展示；拖动定位需 MediaPlayer.seekTo，非审查要求项）
+            if (durationMs > 0) {
+                LinearProgressIndicator(
+                    progress = { if (durationMs == 0) 0f else positionMs.toFloat() / durationMs },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Row {
+                    Text(fmt(positionMs), style = MaterialTheme.typography.labelMedium)
+                    Spacer(Modifier.weight(1f))
+                    Text(fmt(durationMs), style = MaterialTheme.typography.labelMedium)
+                }
             }
 
             if (!hasPermission) {
