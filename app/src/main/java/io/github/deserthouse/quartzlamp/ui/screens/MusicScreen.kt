@@ -41,9 +41,17 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import io.github.deserthouse.quartzlamp.audio.WaveformLevel
 import io.github.deserthouse.quartzlamp.ui.AppViewModel
-import kotlin.math.log10
-import kotlin.math.sqrt
+
+/** 音乐读取权限按 API 分支：READ_MEDIA_AUDIO（33+）/ READ_EXTERNAL_STORAGE（31/32，F09） */
+private fun audioPermissionName(): String =
+    if (android.os.Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_AUDIO
+    else Manifest.permission.READ_EXTERNAL_STORAGE
+
+private fun audioPermissionGranted(context: android.content.Context): Boolean =
+    ContextCompat.checkSelfPermission(context, audioPermissionName()) ==
+            PackageManager.PERMISSION_GRANTED
 
 data class Song(val title: String, val artist: String, val uri: Uri, val id: Long)
 
@@ -59,8 +67,7 @@ fun MusicScreen(vm: AppViewModel) {
     var playing by remember { mutableStateOf(false) }
     var hasPermission by remember {
         mutableStateOf(
-            ContextCompat.checkSelfPermission(context, Manifest.permission.READ_MEDIA_AUDIO)
-                    == PackageManager.PERMISSION_GRANTED &&
+            audioPermissionGranted(context) &&
                     ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
                     == PackageManager.PERMISSION_GRANTED // Visualizer 需要
         )
@@ -94,14 +101,8 @@ fun MusicScreen(vm: AppViewModel) {
             setDataCaptureListener(
                 object : Visualizer.OnDataCaptureListener {
                     override fun onWaveFormDataCapture(viz: Visualizer, waveform: ByteArray, samplingRate: Int) {
-                        var sum = 0.0
-                        for (b in waveform) {
-                            val s = (b - 128) / 128.0
-                            sum += s * s
-                        }
-                        val rms = sqrt(sum / waveform.size)
-                        val db = 20 * log10(rms.coerceAtLeast(1e-5))
-                        val level = ((db + 50.0) / 50.0).coerceIn(0.0, 1.0).toFloat()
+                        // 8 位无符号 PCM → 归一化响度（纯函数在 audio/WaveformLevel，F04）
+                        val level = WaveformLevel.level(waveform)
                         // 响度→色相环：安静深蓝 265° → 高潮红 0°
                         vm.sendReactive(((1f - level) * 265f).toInt(), 1f)
                     }
@@ -142,7 +143,8 @@ fun MusicScreen(vm: AppViewModel) {
             Text("需要音频读取权限浏览本地曲目", style = MaterialTheme.typography.bodyMedium)
             androidx.compose.material3.Button(onClick = {
                 permLauncher.launch(
-                    arrayOf(Manifest.permission.READ_MEDIA_AUDIO, Manifest.permission.RECORD_AUDIO)
+                    // READ_MEDIA_AUDIO 为 API 33+；31/32 走 READ_EXTERNAL_STORAGE（F09）
+                    arrayOf(audioPermissionName(), Manifest.permission.RECORD_AUDIO)
                 )
             }) {
                 Text("授予权限")
@@ -207,8 +209,7 @@ fun MusicScreen(vm: AppViewModel) {
     }
 }
 
-private fun querySongs(context: android.content.Context): List<Song> {
-    val out = ArrayList<Song>()
+private fun querySongs(context: android.content.Context): List<Song> {    val out = ArrayList<Song>()
     val projection = arrayOf(
         MediaStore.Audio.Media._ID,
         MediaStore.Audio.Media.TITLE,
