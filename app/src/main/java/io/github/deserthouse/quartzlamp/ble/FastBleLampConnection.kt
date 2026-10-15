@@ -102,7 +102,13 @@ class FastBleLampConnection(private val app: android.app.Application) : LampConn
         _scanned.value = emptyList()
         _state.value = ConnState.SCANNING
         bleManager.scan(object : BleScanCallback() {
-            override fun onScanStarted(success: Boolean) {}
+            override fun onScanStarted(success: Boolean) {
+                // 扫描启动失败（蓝牙关闭/栈冲突）：不复位会话，只归还状态（UI 另有蓝牙开关卡）
+                if (!success) {
+                    Log.w("BLE", "scan started failure")
+                    if (_state.value == ConnState.SCANNING) _state.value = aggregatedState()
+                }
+            }
             override fun onScanning(bleDevice: BleDevice) {
                 // 厂商过滤：名非空 + 广播识别字节（纯函数在 protocol/ScanFilter，独立单测）
                 val name = bleDevice.name ?: return

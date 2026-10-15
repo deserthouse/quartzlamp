@@ -1,6 +1,12 @@
 package io.github.deserthouse.quartzlamp.ui.screens
 
 import android.Manifest
+import android.bluetooth.BluetoothAdapter
+import android.bluetooth.BluetoothManager
+import android.content.BroadcastReceiver
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -16,6 +22,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -34,7 +41,11 @@ import io.github.deserthouse.quartzlamp.ble.ConnState
 import io.github.deserthouse.quartzlamp.ble.SessionState
 import io.github.deserthouse.quartzlamp.ui.AppViewModel
 
-/** 扫描连接页：BLE 权限门 → 扫描（自动过滤拾音灯广播 22 20）→ 按行连接/断开（F07 行级会话） */
+private fun bluetoothEnabled(context: Context): Boolean =
+    (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)
+        ?.adapter?.isEnabled == true
+
+/** 扫描连接页：BLE 权限门 → 蓝牙开关检测 → 扫描（自动过滤拾音灯广播 22 20）→ 按行连接/断开 */
 @Composable
 fun ScanScreen(vm: AppViewModel) {
     val context = LocalContext.current
@@ -53,6 +64,19 @@ fun ScanScreen(vm: AppViewModel) {
     val permLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
     ) { map -> granted = map.values.all { it } }
+
+    // 蓝牙开关态（系统开关变化实时反映，审查 §6.3 设备页状态）
+    var btOn by remember { mutableStateOf(bluetoothEnabled(context)) }
+    val enableBtLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { btOn = bluetoothEnabled(context) }
+    DisposableEffect(Unit) {
+        val receiver = object : BroadcastReceiver() {
+            override fun onReceive(c: Context, i: Intent) { btOn = bluetoothEnabled(c) }
+        }
+        context.registerReceiver(receiver, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
+        onDispose { context.unregisterReceiver(receiver) }
+    }
 
     DisposableEffect(Unit) {
         onDispose { vm.stopScan() }
@@ -88,10 +112,36 @@ fun ScanScreen(vm: AppViewModel) {
                 if (state == ConnState.SCANNING) {
                     TextButton(onClick = vm::stopScan) { Text("停止") }
                 } else {
-                    Button(onClick = vm::startScan) { Text("扫描") }
+                    Button(
+                        onClick = vm::startScan,
+                        enabled = btOn  // 蓝牙关闭时扫描不可点（避免必失败请求）
+                    ) { Text("扫描") }
                 }
             } else {
                 Button(onClick = { permLauncher.launch(needed.toTypedArray()) }) { Text("授权蓝牙") }
+            }
+        }
+
+        // 蓝牙关闭态（权限与开关是两个独立前提）
+        if (granted && !btOn) {
+            Surface(
+                shape = MaterialTheme.shapes.medium,
+                color = MaterialTheme.colorScheme.surfaceVariant,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        "蓝牙未开启，无法扫描与连接",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Button(
+                        onClick = {
+                            enableBtLauncher.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE))
+                        },
+                        modifier = Modifier.padding(start = 12.dp)
+                    ) { Text("去开启") }
+                }
             }
         }
 
