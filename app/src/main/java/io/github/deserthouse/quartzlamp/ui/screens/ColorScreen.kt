@@ -43,6 +43,8 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import io.github.deserthouse.quartzlamp.ui.AppViewModel
 import kotlin.math.atan2
@@ -264,6 +266,7 @@ private fun HueWheel(
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
+                .semantics { contentDescription = "色相环：拖动或点按选取色相" }
                 .pointerInput(onPick, onPicked) {
                     detectTapGestures { off -> pickFrom(off, size)?.let(onPicked) }
                 }

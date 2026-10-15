@@ -20,7 +20,7 @@ import androidx.compose.ui.platform.LocalContext
  */
 
 // ━━━ 石英品牌色板 ━━━
-private val IrisLight = lightColorScheme(
+internal val IrisLight = lightColorScheme(
     primary = Color(0xFF4C4EC9),            // 鸢尾紫
     onPrimary = Color(0xFFFFFFFF),
     primaryContainer = Color(0xFFE2E1FF),
@@ -44,7 +44,7 @@ private val IrisLight = lightColorScheme(
     onError = Color(0xFFFFFFFF)
 )
 
-private val IrisDark = darkColorScheme(
+internal val IrisDark = darkColorScheme(
     primary = Color(0xFFBFC3FF),
     onPrimary = Color(0xFF1A1B70),
     primaryContainer = Color(0xFF3333A6),
