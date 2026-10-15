@@ -9,7 +9,10 @@ import org.junit.Test
 
 /**
  * 帧表断言测试 —— 事实源 docs/ble_protocol.md。
- * 期望字节全部来自厂商 APK 反汇编实证（tests/apk_analysis/m0_callers/）。
+ *
+ * 独立口径纪律（2026-10-15 R0 起）：期望字节必须抄自厂商反汇编档案
+ * tests/apk_analysis/m0_callers/ 的原文（含方法名+指令偏移），禁止从
+ * LampFrames 实现反算——单测与实现共享同一错误前提时会互证成假绿（20/20 假绿事故）。
  */
 class LampFramesTest {
 
@@ -49,9 +52,19 @@ class LampFramesTest {
         LampFrames.modeSelect(42)
     )
 
-    @Test fun `帧5 速度与全灯下限70`() {
-        assertArrayEquals(h(0xBC, 0x08, 0x02, 0x32, 0x55), LampFrames.speed(50))
-        assertArrayEquals(h(0xBC, 0x08, 0x02, 0x46, 0x55), LampFrames.speed(10, quandengMode = true))
+    @Test fun `帧5 速度 byte2为01`() {
+        // mode$1__onStopTrackingTouch.txt 004c-005f：[0]=0xBC, [1]=8(0050-0053), [2]=v3=1(0055-0056), [3]=v5, [4]=0x55
+        assertArrayEquals(h(0xBC, 0x08, 0x01, 0x32, 0x55), LampFrames.speed(50))
+    }
+
+    @Test fun `帧5 全灯限幅为上限70`() {
+        // mode$1:003c-0042：if-le v5,70 跳过；否则 v5=70 —— 即 min(v,70)
+        // speed=10：10≤70 不变（对照审查复现表：原厂 BC 08 01 0A 55）
+        assertArrayEquals(h(0xBC, 0x08, 0x01, 0x0A, 0x55), LampFrames.speed(10, quandengMode = true))
+        // speed=90：压到 70=0x46（对照审查复现表：原厂 BC 08 01 46 55）
+        assertArrayEquals(h(0xBC, 0x08, 0x01, 0x46, 0x55), LampFrames.speed(90, quandengMode = true))
+        // 非全灯 tab 不限幅（mode$1:003e if-eqz 跳过整段钳制）
+        assertArrayEquals(h(0xBC, 0x08, 0x01, 0x5A, 0x55), LampFrames.speed(90))
     }
 
     @Test fun `帧6 律动变色 除255`() = assertArrayEquals(
@@ -60,22 +73,37 @@ class LampFramesTest {
         LampFrames.reactiveColor(240, 0.5f)
     )
 
-    @Test fun `帧7 灵敏度`() = assertArrayEquals(h(0xBC, 0x10, 0x02, 0x32, 0x55), LampFrames.sensitivity(50))
-
-    @Test fun `帧8 拾音源`() {
-        assertArrayEquals(h(0xBC, 0x0F, 0x01, 0x00, 0x55), LampFrames.micSource(phoneMic = true))
-        assertArrayEquals(h(0xBC, 0x0F, 0x01, 0x01, 0x55), LampFrames.micSource(phoneMic = false))
+    @Test fun `帧7 灵敏度 byte2为01`() {
+        // mode$2__onStopTrackingTouch.txt 003a-0044：[1]=16(0x10), [2]=v3=1
+        assertArrayEquals(h(0xBC, 0x10, 0x01, 0x32, 0x55), LampFrames.sensitivity(50))
     }
 
-    @Test fun `帧9 拾音类型1到4`() {
+    @Test fun `帧8 拾音源 手机麦01灯载麦00`() {
+        // mic$1__onCheckedChanged.txt array@0x5e: "bc0f 0101 5500" ↔ case rb_mic_phone(0x7F09014F, 分支0x5)
+        assertArrayEquals(h(0xBC, 0x0F, 0x01, 0x01, 0x55), LampFrames.micSource(phoneMic = true))
+        // array@0x66: "bc0f 0100 5500" ↔ case rb_mic_device(0x7F09014E, 分支0x21)
+        assertArrayEquals(h(0xBC, 0x0F, 0x01, 0x00, 0x55), LampFrames.micSource(phoneMic = false))
+    }
+
+    @Test fun `帧9 拾音类型 经典1柔和2动感3迪斯科4`() {
+        // mic$2__onCheckedChanged.txt 开关表(2f8370: first_key=0x7F09014B)+四条 array 载荷：
+        // rb_classic →0x2c→ array@0x62 "bc11 0101"   （1=经典）
         assertArrayEquals(h(0xBC, 0x11, 0x01, 0x01, 0x55), LampFrames.micType(1))
+        // rb_soft    →0x04→ array@0x4a "bc11 0102"   （2=柔和）
+        assertArrayEquals(h(0xBC, 0x11, 0x01, 0x02, 0x55), LampFrames.micType(2))
+        // rb_dynamic →0x11→ array@0x52 "bc11 0103"   （3=动感）
+        assertArrayEquals(h(0xBC, 0x11, 0x01, 0x03, 0x55), LampFrames.micType(3))
+        // rb_disco   →0x1e→ array@0x5a "bc11 0104"   （4=迪斯科）
         assertArrayEquals(h(0xBC, 0x11, 0x01, 0x04, 0x55), LampFrames.micType(4))
     }
 
     @Test(expected = IllegalArgumentException::class)
     fun `帧9 类型越界拒绝`() { LampFrames.micType(5) }
 
-    @Test fun `帧10 拾音灵敏度`() = assertArrayEquals(h(0xBC, 0x12, 0x02, 0x19, 0x55), LampFrames.micSensitivity(25))
+    @Test fun `帧10 拾音灵敏度 byte2为01`() {
+        // mic$3__onStopTrackingTouch.txt 0015-0023：[1]=18(0x12), [2]=v3=1
+        assertArrayEquals(h(0xBC, 0x12, 0x01, 0x19, 0x55), LampFrames.micSensitivity(25))
+    }
 
     @Test fun `帧11 RGB直发`() = assertArrayEquals(
         h(0x7E, 0x07, 0x05, 0x03, 0xFF, 0x80, 0x00, 0x00, 0xEF),
@@ -120,14 +148,25 @@ class LampFramesTest {
         assertTrue(info.weekEnabled(0))  // 周一
         assertFalse(info.weekEnabled(1)) // 周二
         assertTrue(info.weekEnabled(2))  // 周三
-        // 未设置：时=0xFF=-1
+        // 未设置：时=0xFF=-1（timer$8:0047-005b 判 -1 即返回）
         val unset = LampFrames.parseTimerRead(
             h(0x7E, 0x08, 0x82, 0xFF, 0xFF, 0xFF, 0x00, 0x00, 0xEF)
         )!!
         assertFalse(unset.isSet)
     }
 
-    @Test fun `短包拒绝解析`() = assertNull(LampFrames.parseTimerRead(h(0x7E, 0x08)))
+    @Test fun `定时读回 长度必须恰9`() {
+        // R0 收紧：厂商只读 [3][4][7]，我方收紧为长度恰 9（7E 族定长）——短包长包都拒绝
+        assertNull(LampFrames.parseTimerRead(h(0x7E, 0x08)))
+        assertNull(LampFrames.parseTimerRead(h(0x7E, 0x08, 0x82, 0x07, 0x1E, 0x00, 0x00, 0x15, 0xEF, 0x00)))
+    }
+
+    @Test fun `定时读回 设定时数值域校验`() {
+        // 时=24 / 分=60 / 周掩码=0x80 越界 → 拒绝（厂商不校验，我方防垃圾包入 UI）
+        assertNull(LampFrames.parseTimerRead(h(0x7E, 0x08, 0x82, 24, 0x1E, 0x00, 0x00, 0x15, 0xEF)))
+        assertNull(LampFrames.parseTimerRead(h(0x7E, 0x08, 0x82, 0x07, 60, 0x00, 0x00, 0x15, 0xEF)))
+        assertNull(LampFrames.parseTimerRead(h(0x7E, 0x08, 0x82, 0x07, 0x1E, 0x00, 0x00, 0x80, 0xEF)))
+    }
 
     @Test fun `hex 日志格式与原厂对齐`() =
         assertEquals("BC01010155", LampFrames.hex(LampFrames.power(true)))

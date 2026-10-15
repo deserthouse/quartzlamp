@@ -30,8 +30,10 @@ import io.github.deserthouse.quartzlamp.ui.AppViewModel
 @Composable
 fun ModeScreen(vm: AppViewModel) {
     val mode by vm.mode.collectAsState()
+    // 厂商同语义：isInQuandengMode 由 mode$4.onTabSelected 汇合点(01d9)在每次切 tab 时按"当前tab==全灯tab"
+    // 重估（全 dex 仅此一处写点），故按浏览 tab 判定即厂商行为；速度限幅=上限70，见 LampFrames.speed
     var tab by remember { mutableIntStateOf(mode.tab) }
-    val quandeng = tab == 8 // 全灯滚动 = isInQuandengMode（速度下限 70）
+    val quandeng = tab == 8
 
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),

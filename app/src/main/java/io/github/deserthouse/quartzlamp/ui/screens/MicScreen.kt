@@ -33,9 +33,7 @@ import androidx.core.content.ContextCompat
 import io.github.deserthouse.quartzlamp.audio.MicEngine
 import io.github.deserthouse.quartzlamp.ui.AppViewModel
 
-private val micTypes = listOf("经典", "迪斯科", "动感", "柔和")
-
-/** 麦克风页：声源（手机麦/外麦）+ 拾音类型 + 灵敏度；手机麦开启即本地采音驱动律动帧 */
+/** 麦克风页：声源（手机麦/灯载麦）+ 拾音类型 + 灵敏度；手机麦开启即本地采音驱动律动帧 */
 @Composable
 fun MicScreen(vm: AppViewModel) {
     val mic by vm.mic.collectAsState()
@@ -83,15 +81,19 @@ fun MicScreen(vm: AppViewModel) {
                 selected = !mic.phoneMic,
                 onClick = { vm.setMicSource(false) },
                 shape = SegmentedButtonDefaults.itemShape(1, 2)
-            ) { Text("外麦") }
+            ) { Text("灯载麦") }
         }
 
         Text("拾音类型", style = MaterialTheme.typography.titleMedium)
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            micTypes.forEachIndexed { i, name ->
+            // 帧值映射按厂商实证：经典=1 迪斯科=4 动感=3 柔和=2（mic$2 开关表+载荷，见 ble_protocol.md §2.1）
+            val names = listOf("经典", "迪斯科", "动感", "柔和")
+            val values = listOf(1, 4, 3, 2)
+            names.forEachIndexed { i, name ->
+                val value = values[i]
                 FilterChip(
-                    selected = mic.type == i + 1,
-                    onClick = { vm.setMicType(i + 1) },
+                    selected = mic.type == value,
+                    onClick = { vm.setMicType(value) },
                     label = { Text(name) }
                 )
             }

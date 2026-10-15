@@ -48,11 +48,13 @@ object LampFrames {
             0x55
         )
 
-    /** 帧#5 速度（全灯模式下限 70） */
+    /** 帧#5 速度（byte[2]=01，mode$1:0050-0056 实证）；
+     *  quandengMode（当前浏览分类=全灯）时上限 70（mode$1:003a-0042 为 min(v,70)）。
+     *  flag 按当前 tab 重估是厂商语义：mode$4.onTabSelected 各分支汇合点 01d9 统一重估，见 ble_protocol.md §2.1。 */
     fun speed(v: Int, quandengMode: Boolean = false): ByteArray =
         byteArrayOf(
-            0xBC.toByte(), 0x08, 0x02,
-            (if (quandengMode) v.coerceAtLeast(70) else v).toByte(),
+            0xBC.toByte(), 0x08, 0x01,
+            (if (quandengMode) v.coerceAtMost(70) else v).toByte(),
             0x55
         )
 
@@ -67,23 +69,25 @@ object LampFrames {
         )
     }
 
-    /** 帧#7 灵敏度（模式页） */
+    /** 帧#7 灵敏度（模式页；byte[2]=01，mode$2:003e-0044 实证） */
     fun sensitivity(v: Int): ByteArray =
-        bc5(0x10, 0x02, v)
+        bc5(0x10, 0x01, v)
 
-    /** 帧#8 拾音开关（micOn：true=手机麦侧待验证方向，见 ble_protocol.md §5.1） */
+    /** 帧#8 拾音源：手机麦=01、灯载麦=00（mic$1 array@0x5e=BC0F0101↔rb_mic_phone=0x7F09014F、
+     *  array@0x66=BC0F0100↔rb_mic_device=0x7F09014E，aapt2 资源表实证） */
     fun micSource(phoneMic: Boolean): ByteArray =
-        bc5(0x0F, 0x01, if (phoneMic) 0x00 else 0x01)
+        bc5(0x0F, 0x01, if (phoneMic) 0x01 else 0x00)
 
-    /** 帧#9 拾音类型（1..4 ↔ 经典/迪斯科/动感/柔和，映射待验证） */
+    /** 帧#9 拾音类型：经典=1、柔和=2、动感=3、迪斯科=4
+     *  （mic$2 开关表 6 目标 + array 载荷 + aapt2 资源 id 实证；UI 层按下表值发，不按序号） */
     fun micType(type: Int): ByteArray {
         require(type in 1..4)
         return bc5(0x11, 0x01, type)
     }
 
-    /** 帧#10 拾音灵敏度 */
+    /** 帧#10 拾音灵敏度（byte[2]=01，mic$3:0017-001b 实证） */
     fun micSensitivity(v: Int): ByteArray =
-        bc5(0x12, 0x02, v)
+        bc5(0x12, 0x01, v)
 
     // ━━━ 7E 族（头 0x7E 尾 0xEF，9 字节）━━━
 
@@ -120,14 +124,17 @@ object LampFrames {
         0xEF.toByte()
     )
 
-    /** §3 定时读回解析：Triple(时,-1=未设置, 分, 周位掩码)；格式不符返回 null */
+    /** §3 定时读回解析：[3]=时（-1=未设置，timer$8:0047-005b 判 -1 即清 UI 返回）、[4]=分、[7]=周掩码。
+     *  收紧口径：长度恰 9 + 设定时数值域校验。不校验帧头尾——厂商不校验、响应包络未实证，
+     *  加校验有误丢有效读回的风险（真机验收项，见 ble_protocol.md §5）。 */
     fun parseTimerRead(data: ByteArray): TimerInfo? {
-        if (data.size < 8) return null
-        return TimerInfo(
-            hour = data[3].toInt(),
-            minute = data[4].toInt(),
-            weekBits = data[7].toInt()
-        )
+        if (data.size != 9) return null
+        val hour = data[3].toInt()
+        val minute = data[4].toInt()
+        val weekBits = data[7].toInt()
+        if (hour == -1) return TimerInfo(hour = -1, minute = minute, weekBits = weekBits)
+        if (hour !in 0..23 || minute !in 0..59 || weekBits !in 0..127) return null
+        return TimerInfo(hour, minute, weekBits)
     }
 
     data class TimerInfo(val hour: Int, val minute: Int, val weekBits: Int) {
