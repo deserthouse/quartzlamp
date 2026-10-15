@@ -196,15 +196,21 @@ M0 时对比厂商 dex 内 FastBle 类集与 2.3.4 确认版本一致（厂商 c
     预设 2×4 自适应——436dp 裁切根治）+灯效屏（当前灯效卡/分类 pill/双列卡片/名称色示意条）。
   - **D1**（12c27b7）：四入口导航+设备胶囊+律动三源合并屏（手机麦显式聆听+灯载麦+
     本地音乐+灯端拾音设置卡）；三态走查过。
-  - **R4**（本次）：lint 0 新问题（存量 22e/29w 锁 lint-baseline——21 项 MissingPermission
+  - **R4**（3e4de40）：lint 0 新问题（存量 22e/29w 锁 lint-baseline——21 项 MissingPermission
     全在收编 FastBle libs-src、1 项 PropertyEscape 在本机 local.properties，非我方代码）；
-    versionCode 2 / versionName 0.2.0（唯一事实源=build.gradle.kts）；release 出包
-    **MD5 17c9121d8bf4666bdd67edeb828674f2**（2.18MB，V2 签名验证过，FakeLamp dex grep=0）；
-    README JDK 21 修正。
-  - **单测 41/41 全绿**（22 帧表+4 扫描过滤+6 假灯契约+5 定时槽位+4 波形）。
-- ⏳ **终局=真机+真灯验收（用户执行）**：按修订版 `docs/acceptance.md` 逐项（13 步）；
-  我方 BLE-WRITE 日志与原厂 App 同操作抓帧逐字节对照（仲裁标准）。**tag v0.2.0 待终验
-  通过后再打**。AVD/假灯/单测证据不充当 BLE 端到端结论。
+    versionCode 2 / versionName 0.2.0（唯一事实源=build.gradle.kts）；README JDK 21 修正。
+  - **W1-W5 收官（2026-10-15，工作单 docs/workorder_final_2026-10-15.md 全部执行）**：
+    W1（a0b14fa）README 刷新+双语声明、音乐播完回落+进度条、lint 分诊表；
+    W2（0cf42b7）定时屏 TimePicker 重设计+扫描屏蓝牙关闭态+帧回归逐字节一致（过程修掉
+    周 chips 溢出——weight 均分根治）；W3（54918fd）对比度单测 12 项门禁+色环语义+
+    360dp×1.3x/2.0x 走查；W4（1e7e241）正式图标（晶体三面+微渐变+声波加粗+monochrome）
+    +About 页（谐音梗/版本/致谢）+主题双轨开关（石英默认/动态色可选）；W5 终版出包。
+  - **终版产物：v0.2.0 (versionCode 2) release，MD5 `5b0109dcf908cf8fc2ba6c2fc054a3cf`
+    （2.33MB，V2 签名，dex grep FakeLamp=0）。rc 哈希 17c9121d… 作废。**
+    lint 0 warning（存量仍锁 baseline）；单测 47/47。
+- ⏳ **终局=真机+真灯验收（用户执行，W6 统一验收包）**：`docs/acceptance.md` 三合一
+  （视觉审美确认+13 步功能终验+3 项协议仲裁）。**tag v0.2.0 待终验通过后再打**。
+  AVD/假灯/单测证据不充当 BLE 端到端结论。
 
 ### 核心文件拓扑
 

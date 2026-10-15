@@ -1,6 +1,7 @@
 package io.github.deserthouse.quartzlamp
 
 import android.app.Application
+import androidx.core.content.edit
 import io.github.deserthouse.quartzlamp.ble.LampConnection
 import kotlinx.coroutines.flow.MutableStateFlow
 
@@ -21,7 +22,7 @@ class QuartzLampApp : Application() {
     }
 
     fun setDynamicTheme(on: Boolean) {
-        getSharedPreferences(PREFS, MODE_PRIVATE).edit().putBoolean(KEY_DYNAMIC, on).apply()
+        getSharedPreferences(PREFS, MODE_PRIVATE).edit { putBoolean(KEY_DYNAMIC, on) }
         dynamicTheme.value = on
     }
 
