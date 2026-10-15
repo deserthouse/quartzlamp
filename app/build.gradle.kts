@@ -48,6 +48,7 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
+            buildConfigField("boolean", "FORCE_REAL_BLE", "false")
             signingConfig = if (hasReleaseCredentials) signingConfigs.getByName("release")
                 else signingConfigs.getByName("debug")
             proguardFiles(
@@ -57,6 +58,12 @@ android {
         }
         debug {
             isMinifyEnabled = false
+            // debug 专用冒烟开关：-PforceRealBle=true 强制走真实 FastBle 路径（AVD 验证 F01 初始化，
+            // 无 BLE 外设时预期扫描空列表而非崩溃）；release 恒 false
+            buildConfigField(
+                "boolean", "FORCE_REAL_BLE",
+                providers.gradleProperty("forceRealBle").orNull ?: "false"
+            )
         }
     }
 
@@ -74,6 +81,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
     testOptions {
         unitTests.isReturnDefaultValues = true

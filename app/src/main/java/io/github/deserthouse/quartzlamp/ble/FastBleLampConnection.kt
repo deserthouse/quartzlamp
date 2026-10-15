@@ -34,6 +34,9 @@ class FastBleLampConnection(private val app: android.app.Application) : LampConn
     private val seen = LinkedHashMap<String, ScannedLamp>()
 
     fun init() {
+        // 厂商顺序（MyApplication.onCreate:0007-0023）：init(app) 必须最先——
+        // 缺它时首次扫描在 BleScanner 内 NPE（审查 F01，真机阻断）
+        bleManager.init(app)
         bleManager
             .enableLog(true)
             .setReConnectCount(3, 4000L)
@@ -132,9 +135,9 @@ class FastBleLampConnection(private val app: android.app.Application) : LampConn
         for (d in devices) {
             bleManager.write(
                 d, LampFrames.SERVICE_UUID, LampFrames.CHAR_UUID, frame,
-                /* split  */ true,
-                /* seq     */ true,
-                /* timeout */ 200L,
+                /* split */ true,
+                /* sendNextWhenLastSuccess */ true,
+                /* intervalBetweenTwoPackage */ 200L,
                 object : BleWriteCallback() {
                     override fun onWriteSuccess(current: Int, total: Int, justWrite: ByteArray) {}
                     override fun onWriteFailure(exception: BleException) {
