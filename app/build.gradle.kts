@@ -48,7 +48,6 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            buildConfigField("boolean", "FORCE_REAL_BLE", "false")
             signingConfig = if (hasReleaseCredentials) signingConfigs.getByName("release")
                 else signingConfigs.getByName("debug")
             proguardFiles(
@@ -101,6 +100,7 @@ dependencies {
     implementation("androidx.navigation:navigation-compose:2.9.0")
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
     debugImplementation("androidx.compose.ui:ui-test-manifest")

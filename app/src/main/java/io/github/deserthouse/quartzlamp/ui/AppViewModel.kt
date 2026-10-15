@@ -2,13 +2,17 @@ package io.github.deserthouse.quartzlamp.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.viewModelScope
 import io.github.deserthouse.quartzlamp.QuartzLampApp
 import io.github.deserthouse.quartzlamp.ble.ConnState
 import io.github.deserthouse.quartzlamp.ble.LampConnection
 import io.github.deserthouse.quartzlamp.ble.ScannedLamp
+import io.github.deserthouse.quartzlamp.ble.SessionState
 import io.github.deserthouse.quartzlamp.protocol.LampFrames
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 /**
  * 全局唯一 ViewModel：连接状态 + 各页控制语义（帧构造全走 protocol 层）。
@@ -18,7 +22,14 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
 
     val state: StateFlow<ConnState> = lamp.state
     val scanned: StateFlow<List<ScannedLamp>> = lamp.scanned
+    val sessions: StateFlow<Map<String, SessionState>> = lamp.sessions
     val frameLog get() = lamp.frameLog
+    val isDemo get() = lamp.isDemo
+
+    fun startScan() = lamp.startScan()
+    fun stopScan() = lamp.stopScan()
+    fun connect(l: ScannedLamp) = lamp.connect(l)
+    fun disconnect(mac: String) = lamp.disconnect(mac)
 
     // ━━━ 电源 ━━━
     private val _powerOn = MutableStateFlow(true)
@@ -51,29 +62,28 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
     private val _mic = MutableStateFlow(MicState())
     val mic: StateFlow<MicState> = _mic
 
-    // ━━━ 定时 ━━━
+    // ━━━ 定时（F05/F06 重做）━━━
+    /**
+     * 单时段槽位：草稿即状态（VM 独立持有，两槽互不干扰——读开灯不丢关灯草稿）。
+     * loaded=灯端读到过有效配置；busy=查询中；error=最近一次读取失败。
+     * 无"启用"开关：协议无此位（F05），保存即下发、删除=清空重存、读回空=未设置。
+     */
+    data class TimerSlot(
+        val hour: Int = 7,
+        val minute: Int = 0,
+        val weeks: List<Boolean> = List(7) { false },
+        val loaded: Boolean = false,
+        val busy: Boolean = false,
+        val error: Boolean = false
+    )
+
     data class TimerUiState(
-        val openHour: Int = 7,
-        val openMinute: Int = 0,
-        val openEnabled: Boolean = false,
-        val openWeeks: List<Boolean> = List(7) { false },
-        val closeHour: Int = 23,
-        val closeMinute: Int = 0,
-        val closeEnabled: Boolean = false,
-        val closeWeeks: List<Boolean> = List(7) { false }
+        val open: TimerSlot = TimerSlot(),
+        val close: TimerSlot = TimerSlot(hour = 23, minute = 0)
     )
 
     private val _timer = MutableStateFlow(TimerUiState())
     val timer: StateFlow<TimerUiState> = _timer
-
-    /** 读回回填信号：+1 触发 UI 用 _timer 重置本地编辑态 */
-    private val _timerReadTick = MutableStateFlow(0)
-    val timerReadTick: StateFlow<Int> = _timerReadTick
-
-    fun startScan() = lamp.startScan()
-    fun stopScan() = lamp.stopScan()
-    fun connect(l: ScannedLamp) = lamp.connect(l)
-    fun disconnect() = lamp.disconnect()
 
     fun setPower(on: Boolean) {
         _powerOn.value = on
@@ -130,35 +140,47 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
     /** 手机麦 dB → 律动变色（帧#6） */
     fun sendReactive(hue: Int, sat: Float) = lamp.send(LampFrames.reactiveColor(hue, sat))
 
-    fun updateTimerOpen(hour: Int, minute: Int, enabled: Boolean, weeks: List<Boolean>) {
-        _timer.value = _timer.value.copy(
-            openHour = hour, openMinute = minute, openEnabled = enabled, openWeeks = weeks
-        )
-        lamp.send(LampFrames.timerSet(hour, minute, open = true, weekBits = weekBits(weeks)))
+    // ━━━ 定时：槽位编辑/保存/读取（全部 update{} 原子改） ━━━
+
+    /** 草稿编辑：只改本槽，不动另一槽 */
+    fun updateTimerSlot(open: Boolean, hour: Int, minute: Int, weeks: List<Boolean>) =
+        _timer.update { it.withSlot(open) { s -> s.copy(hour = hour, minute = minute, weeks = weeks) } }
+
+    /** 应用到灯：保存即下发 timerSet（协议无启用位，F05） */
+    fun saveTimerSlot(open: Boolean) {
+        val s = _timer.value.slot(open)
+        lamp.send(LampFrames.timerSet(s.hour, s.minute, open, weekBits(s.weeks)))
     }
 
-    fun updateTimerClose(hour: Int, minute: Int, enabled: Boolean, weeks: List<Boolean>) {
-        _timer.value = _timer.value.copy(
-            closeHour = hour, closeMinute = minute, closeEnabled = enabled, closeWeeks = weeks
-        )
-        lamp.send(LampFrames.timerSet(hour, minute, open = false, weekBits = weekBits(weeks)))
-    }
-
-    fun queryTimer(open: Boolean, onResult: (LampFrames.TimerInfo?) -> Unit) =
-        lamp.queryTimer(open) { bytes ->
-            val info = bytes?.let(LampFrames::parseTimerRead)
-            if (info != null && info.isSet) {
-                // 回填到 VM 状态并 bump 信号，UI 据此重置本地编辑态
-                val weeks = List(7) { i -> (info.weekBits shr i) and 1 == 1 }
-                _timer.value = if (open) {
-                    _timer.value.copy(openHour = info.hour, openMinute = info.minute, openWeeks = weeks)
-                } else {
-                    _timer.value.copy(closeHour = info.hour, closeMinute = info.minute, closeWeeks = weeks)
+    /** 从灯读取：空配置清空本槽（未设置语义，F06）；失败置 error，不清草稿 */
+    fun queryTimerSlot(open: Boolean) {
+        viewModelScope.launch {
+            _timer.update { it.withSlot(open) { s -> s.copy(busy = true, error = false) } }
+            val info = runCatching { lamp.queryTimer(open) }.getOrNull()
+                ?.let { LampFrames.parseTimerRead(it) }
+            _timer.update { cur ->
+                cur.withSlot(open) { s ->
+                    when {
+                        info == null -> s.copy(busy = false, error = true)
+                        !info.isSet -> TimerSlot() // 未设置 → 清空（hour 回默认草稿值，loaded=false）
+                        else -> TimerSlot(
+                            hour = info.hour,
+                            minute = info.minute,
+                            weeks = List(7) { i -> info.weekEnabled(i) },
+                            loaded = true
+                        )
+                    }
                 }
-                _timerReadTick.value += 1
             }
-            onResult(info)
         }
+    }
+
+    private fun TimerUiState.slot(openSlot: Boolean): TimerSlot = if (openSlot) open else close
+
+    private inline fun TimerUiState.withSlot(
+        openSlot: Boolean,
+        transform: (TimerSlot) -> TimerSlot
+    ): TimerUiState = if (openSlot) copy(open = transform(open)) else copy(close = transform(close))
 
     private fun weekBits(weeks: List<Boolean>): Int {
         var b = 0

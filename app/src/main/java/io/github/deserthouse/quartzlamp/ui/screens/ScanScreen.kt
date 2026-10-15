@@ -31,14 +31,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import io.github.deserthouse.quartzlamp.ble.ConnState
+import io.github.deserthouse.quartzlamp.ble.SessionState
 import io.github.deserthouse.quartzlamp.ui.AppViewModel
 
-/** 扫描连接页：BLE 权限门 → 扫描（自动过滤拾音灯广播 22 20）→ 连接 */
+/** 扫描连接页：BLE 权限门 → 扫描（自动过滤拾音灯广播 22 20）→ 按行连接/断开（F07 行级会话） */
 @Composable
 fun ScanScreen(vm: AppViewModel) {
     val context = LocalContext.current
     val state by vm.state.collectAsState()
     val scanned by vm.scanned.collectAsState()
+    val sessions by vm.sessions.collectAsState()
 
     val needed = remember {
         listOf(Manifest.permission.BLUETOOTH_SCAN, Manifest.permission.BLUETOOTH_CONNECT)
@@ -66,11 +68,19 @@ fun ScanScreen(vm: AppViewModel) {
                     ConnState.DISCONNECTED -> "未连接"
                     ConnState.SCANNING -> "扫描中…"
                     ConnState.CONNECTING -> "连接中…"
-                    ConnState.CONNECTED -> "已连接"
+                    ConnState.CONNECTED -> "已连接 ×${sessions.count { it.value == SessionState.CONNECTED }}"
                 },
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.weight(1f)
             )
+            if (vm.isDemo) {
+                Text(
+                    "演示模式",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.tertiary,
+                    modifier = Modifier.padding(end = 12.dp)
+                )
+            }
             if (state == ConnState.SCANNING) {
                 CircularProgressIndicator(Modifier.padding(end = 12.dp))
             }
@@ -87,13 +97,22 @@ fun ScanScreen(vm: AppViewModel) {
 
         LazyColumn(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             items(scanned, key = { it.mac }) { lamp ->
+                val session = sessions[lamp.mac] ?: SessionState.DISCONNECTED
                 ListItem(
                     headlineContent = { Text(lamp.name) },
                     supportingContent = { Text("${lamp.mac} · ${lamp.rssi} dBm") },
                     trailingContent = {
-                        if (state == ConnState.CONNECTED || state == ConnState.CONNECTING)
-                            TextButton(onClick = vm::disconnect) { Text("断开") }
-                        else TextButton(onClick = { vm.connect(lamp) }) { Text("连接") }
+                        // 行级会话状态：只反映本设备，不因其他设备连接而变化（F07）
+                        when (session) {
+                            SessionState.CONNECTED ->
+                                TextButton(onClick = { vm.disconnect(lamp.mac) }) { Text("断开") }
+                            SessionState.CONNECTING ->
+                                Text("连接中…", style = MaterialTheme.typography.labelMedium)
+                            SessionState.RECONNECTING ->
+                                Text("重连中…", style = MaterialTheme.typography.labelMedium)
+                            SessionState.DISCONNECTED ->
+                                TextButton(onClick = { vm.connect(lamp) }) { Text("连接") }
+                        }
                     }
                 )
             }
