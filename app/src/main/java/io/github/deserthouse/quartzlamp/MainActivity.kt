@@ -6,17 +6,18 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.GraphicEq
-import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -32,11 +33,11 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import io.github.deserthouse.quartzlamp.ble.ConnState
+import io.github.deserthouse.quartzlamp.ble.SessionState
 import io.github.deserthouse.quartzlamp.ui.AppViewModel
 import io.github.deserthouse.quartzlamp.ui.screens.ColorScreen
-import io.github.deserthouse.quartzlamp.ui.screens.MicScreen
 import io.github.deserthouse.quartzlamp.ui.screens.ModeScreen
-import io.github.deserthouse.quartzlamp.ui.screens.MusicScreen
+import io.github.deserthouse.quartzlamp.ui.screens.RhythmScreen
 import io.github.deserthouse.quartzlamp.ui.screens.ScanScreen
 import io.github.deserthouse.quartzlamp.ui.screens.TimerScreen
 import io.github.deserthouse.quartzlamp.ui.theme.QuartzLampTheme
@@ -57,11 +58,11 @@ class MainActivity : ComponentActivity() {
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
 
+/** 四入口（2026-10-15 拍板）：调色/灯效/律动/定时；扫描收进顶栏设备胶囊 */
 private val tabs = listOf(
     Tab("color", "调色", Icons.Filled.Palette),
-    Tab("mode", "模式", Icons.Filled.Speed),
-    Tab("mic", "麦克风", Icons.Filled.GraphicEq),
-    Tab("music", "音乐", Icons.Filled.MusicNote),
+    Tab("mode", "灯效", Icons.Filled.AutoAwesome),
+    Tab("rhythm", "律动", Icons.Filled.GraphicEq),
     Tab("timer", "定时", Icons.Filled.Schedule),
 )
 
@@ -70,14 +71,16 @@ private val tabs = listOf(
 private fun MainScaffold(vm: AppViewModel) {
     val nav = rememberNavController()
     val state by vm.state.collectAsState()
+    val sessions by vm.sessions.collectAsState()
     val backStack by nav.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
 
-    val connLabel = when (state) {
-        ConnState.CONNECTED -> "已连接"
-        ConnState.CONNECTING -> "连接中"
-        ConnState.SCANNING -> "扫描中"
-        ConnState.DISCONNECTED -> "未连接"
+    val connectedCount = sessions.count { it.value == SessionState.CONNECTED }
+    val connLabel = when {
+        state == ConnState.SCANNING -> "扫描中"
+        connectedCount > 0 -> "已连接 ×$connectedCount"
+        state == ConnState.CONNECTING -> "连接中"
+        else -> "未连接"
     }
 
     Scaffold(
@@ -85,13 +88,23 @@ private fun MainScaffold(vm: AppViewModel) {
             TopAppBar(
                 title = { Text("拾音灯 · $connLabel") },
                 actions = {
-                    Text(
-                        "设备",
+                    // 全局设备胶囊（连接管理入口）
+                    Surface(
+                        shape = CircleShape,
+                        color = if (connectedCount > 0) MaterialTheme.colorScheme.primaryContainer
+                        else MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = if (connectedCount > 0) MaterialTheme.colorScheme.onPrimaryContainer
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier
                             .padding(end = 16.dp)
-                            .clickable { nav.navigate("scan") },
-                        style = MaterialTheme.typography.labelLarge
-                    )
+                            .clickable { nav.navigate("scan") }
+                    ) {
+                        Text(
+                            "设备",
+                            style = MaterialTheme.typography.labelLarge,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        )
+                    }
                 },
                 colors = TopAppBarDefaults.topAppBarColors()
             )
@@ -124,8 +137,7 @@ private fun MainScaffold(vm: AppViewModel) {
         ) {
             composable("color") { ColorScreen(vm) }
             composable("mode") { ModeScreen(vm) }
-            composable("mic") { MicScreen(vm) }
-            composable("music") { MusicScreen(vm) }
+            composable("rhythm") { RhythmScreen(vm) }
             composable("timer") { TimerScreen(vm) }
             composable("scan") { ScanScreen(vm) }
         }
