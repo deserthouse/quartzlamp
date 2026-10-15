@@ -173,25 +173,50 @@ M0 时对比厂商 dex 内 FastBle 类集与 2.3.4 确认版本一致（厂商 c
   - 其余（F03/F06/F09/F10/F11/F12/F13）经报告证据+代码交叉核对，无异议采纳。
 - ⏳ **修复+改版已排产（2026-10-15 用户授权"依据判断安排、切换模型后开工"）**：
   工作单 `docs/workorder_rd_2026-10-15.md`（R0 协议纠正→R1 init→R2 可靠性→R3 音频→
-  D0 样张→D1 六屏→R4 门禁，串行原子提交；无视觉模型执行至 R4 止，D 系列交多模态）。
+  D0 样张→D1 六屏→R4 门禁，串行原子提交）。
   Agent 拍板四项（记录在案，终验可否决但不再中途重议）：**D0 方向=光谱控制台**；
   **底栏四入口**（调色/灯效/律动/定时，扫描收进顶栏设备入口）；**麦克风+音乐合并为律动屏**
   （源切换器）；**定时"启用"开关移除**（协议无此位，保存即下发/删除即清除）。
-  v0.2.0 tag 待真灯终验后再打。本轮仅研判+排产，应用代码与协议帧表尚未修复，
-  不可继续按旧 20/20 视为已验证。
-- ⏳ **后续真灯终验**：功能修复完成后重审 `docs/acceptance.md` 清单与协议仲裁项；
-  本轮无真机+真灯证据，不把AVD或探针当BLE端到端结果。
+- ✅ **R/D 全系列执行完成（2026-10-15，多模态模型按单开工）**，逐阶段原子提交：
+  - **R0**（811d21a）：帧#5/#7/#10 byte[2]→01、全灯限幅改上限 min(v,70)、拾音源定案
+    （手机麦=01/灯载麦=00）、类型定案（1/2/3/4=经典/柔和/动感/迪斯科）、parseTimerRead 收紧
+    （恰9字节+数值域）、§1 写参数语义纠正；**驳回审查"限幅按已选效果"子论点**（mode$4
+    onTabSelected 汇合点实证：flag 按当前 tab 重估=厂商语义）；单测期望值全部标注档案出处。
+  - **R1**（a0663b7）：`bleManager.init(app)` 补齐（厂商顺序 init 最先）+ BuildConfig
+    FORCE_REAL_BLE 冒烟开关；AVD 真实路径冒烟过（真 BLE 栈介入，0 NPE）。
+  - **R2**（40a10af）：sessions 每 MAC 会话态/行级断开（断一不影响另一台）、意外断连有限重连
+    （3×4s 可取消）、定时查询串行事务（Mutex+写回调等待+12s 超时）、连接即对时（帧#14，
+    TimerUtils 同语义）、release 物理隔离假灯（dex grep=0）+演示徽标+失败注入、
+    定时槽位重做（删启用开关/两槽草稿隔离/未设置清空/失败置 error）、acceptance.md 重写
+    （F12：证据列+AVD/真灯边界）；**踩中并修复 StateFlow 并发覆盖竞态**（纪律七.5 再验证）。
+  - **R3**（c89a176）：WaveformLevel 纯函数（无符号 PCM 归一，静音→0）、音乐权限
+    API33+/31-32 双分支。
+  - **D0**（dd931bd）：token 层（QuartzTypography 32/40sp 字阶+Shapes+石英色板鸢尾紫/
+    MaterialExpressiveTheme+expressive motion）+调色屏（色环主角/电源主操作/厚轨道大数值/
+    预设 2×4 自适应——436dp 裁切根治）+灯效屏（当前灯效卡/分类 pill/双列卡片/名称色示意条）。
+  - **D1**（12c27b7）：四入口导航+设备胶囊+律动三源合并屏（手机麦显式聆听+灯载麦+
+    本地音乐+灯端拾音设置卡）；三态走查过。
+  - **R4**（本次）：lint 0 新问题（存量 22e/29w 锁 lint-baseline——21 项 MissingPermission
+    全在收编 FastBle libs-src、1 项 PropertyEscape 在本机 local.properties，非我方代码）；
+    versionCode 2 / versionName 0.2.0（唯一事实源=build.gradle.kts）；release 出包
+    **MD5 17c9121d8bf4666bdd67edeb828674f2**（2.18MB，V2 签名验证过，FakeLamp dex grep=0）；
+    README JDK 21 修正。
+  - **单测 41/41 全绿**（22 帧表+4 扫描过滤+6 假灯契约+5 定时槽位+4 波形）。
+- ⏳ **终局=真机+真灯验收（用户执行）**：按修订版 `docs/acceptance.md` 逐项（13 步）；
+  我方 BLE-WRITE 日志与原厂 App 同操作抓帧逐字节对照（仲裁标准）。**tag v0.2.0 待终验
+  通过后再打**。AVD/假灯/单测证据不充当 BLE 端到端结论。
 
 ### 核心文件拓扑
 
 ```
 project_status.md          ← 本文件（唯一状态源）
-docs/ble_protocol.md       ← ✅ M0 帧表事实源（协议改动必须同步+过单测）
+docs/ble_protocol.md       ← ✅ 帧表事实源（R0 已纠偏，协议改动必须同步+过单测）
+docs/acceptance.md         ← ✅ R2 重写：终验清单（证据列+AVD/真灯边界）
+docs/workorder_rd_2026-10-15.md ← R/D 系列工作单（已全部执行完毕，过程见 git log）
+docs/review_2026-10-15.md   ← 基线审查快照（13 项发现已修复/处置）
 tests/apk_analysis/        ← 拆解产物（APK/解包已 gitignore，再生命令见其 README）
-tests/apk_analysis/m0_callers/ ← M0 各 write 调用点反汇编存档（小文本，入库）
-docs/review_2026-10-15.md   ← 基线审查快照、问题证据、修复顺序与M3E改版规范
-docs/workorder_rd_2026-10-15.md ← R/D 系列工作单（修复+改版排产，切换模型后按单执行）
-docs/review_visual_direction.html ← 调色页交互概念（非真实APK截图）
-tests/review/              ← 审查复现工具与日志（编译产物/参考缓存已忽略）
-app/                       ← 可构建原型；ble/protocol/audio/ui/data 分层，缺陷待修
+tests/apk_analysis/m0_callers/ ← M0 各 write 调用点反汇编存档（单测期望值出处）
+tests/screens/             ← D0/D1 视觉证据（浅深双主题）
+tests/review/              ← 审查/冒烟证据（r1_realble_smoke.log / r2_e2e_frames.log）
+app/                       ← 0.2.0-rc：ble/protocol/audio/ui/data 分层，lint-baseline 已锁
 ```

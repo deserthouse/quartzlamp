@@ -15,8 +15,8 @@ android {
         applicationId = "io.github.deserthouse.quartzlamp"
         minSdk = 31
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.2.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -84,6 +84,11 @@ android {
     }
     testOptions {
         unitTests.isReturnDefaultValues = true
+    }
+    lint {
+        // R4 门禁（F13）：存量问题锁进 baseline（21 项 MissingPermission 全在收编的
+        // FastBle libs-src 源码+local.properties 本机文件，非我方代码）；新增问题仍会报错
+        baseline = file("lint-baseline.xml")
     }
 }
 

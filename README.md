@@ -24,7 +24,7 @@ Lenze Tech「拾音灯」硬件的自有 Android 控制器——Material 3 Expre
 ## 构建
 
 ```bash
-./gradlew assembleDebug    # 需要 JDK 17+（本项目验证于 JDK 21）
+./gradlew assembleDebug    # 需要 JDK 21（AGP 9 实测门槛，系统默认 JDK 11 会失败）
 ./gradlew testDebugUnitTest
 ```
 

@@ -1,0 +1,561 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<issues format="6" by="lint 9.2.1" type="baseline" client="gradle" dependencies="false" name="AGP (9.2.1)" variant="all" version="9.2.1">
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="            bluetoothGatt = bleDevice.getDevice().connectGatt(BleManager.getInstance().getContext(),"
+        errorLine2="                            ^">
+        <location
+            file="libs-src/com/clj/fastble/bluetooth/BleBluetooth.java"
+            line="172"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="            bluetoothGatt = bleDevice.getDevice().connectGatt(BleManager.getInstance().getContext(),"
+        errorLine2="                            ^">
+        <location
+            file="libs-src/com/clj/fastble/bluetooth/BleBluetooth.java"
+            line="175"
+            column="29"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="            bluetoothGatt.disconnect();"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/bluetooth/BleBluetooth.java"
+            line="218"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="            bluetoothGatt.close();"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/bluetooth/BleBluetooth.java"
+            line="237"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="                        boolean discoverServiceResult = bluetoothGatt.discoverServices();"
+        errorLine2="                                                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/bluetooth/BleBluetooth.java"
+            line="314"
+            column="57"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="        boolean success1 = gatt.setCharacteristicNotification(characteristic, enable);"
+        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/bluetooth/BleConnector.java"
+            line="285"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="            boolean success2 = gatt.writeDescriptor(descriptor);"
+        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/bluetooth/BleConnector.java"
+            line="307"
+            column="32"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="        boolean success1 = gatt.setCharacteristicNotification(characteristic, enable);"
+        errorLine2="                           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/bluetooth/BleConnector.java"
+            line="362"
+            column="28"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="            boolean success2 = gatt.writeDescriptor(descriptor);"
+        errorLine2="                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/bluetooth/BleConnector.java"
+            line="384"
+            column="32"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="            if (!mBluetoothGatt.writeCharacteristic(mCharacteristic)) {"
+        errorLine2="                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/bluetooth/BleConnector.java"
+            line="413"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="            if (!mBluetoothGatt.readCharacteristic(mCharacteristic)) {"
+        errorLine2="                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/bluetooth/BleConnector.java"
+            line="432"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="        if (!mBluetoothGatt.readRemoteRssi()) {"
+        errorLine2="             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/bluetooth/BleConnector.java"
+            line="448"
+            column="14"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="            if (!mBluetoothGatt.requestMtu(requiredMtu)) {"
+        errorLine2="                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/bluetooth/BleConnector.java"
+            line="461"
+            column="18"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="            return mBluetoothGatt.requestConnectionPriority(connectionPriority);"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/bluetooth/BleConnector.java"
+            line="484"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="            return mDevice.getName();"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/data/BleDevice.java"
+            line="61"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="            return mDevice.getName() + mDevice.getAddress();"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/data/BleDevice.java"
+            line="73"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="            bluetoothAdapter.enable();"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/BleManager.java"
+            line="758"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="                bluetoothAdapter.disable();"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/BleManager.java"
+            line="768"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="            return bluetoothManager.getConnectionState(bleDevice.getDevice(), BluetoothProfile.GATT);"
+        errorLine2="                   ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/BleManager.java"
+            line="895"
+            column="20"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="        BleManager.getInstance().getBluetoothAdapter().stopLeScan(mBleScanPresenter);"
+        errorLine2="        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/scan/BleScanner.java"
+            line="129"
+            column="9"/>
+    </issue>
+
+    <issue
+        id="MissingPermission"
+        message="Call requires permission which may be rejected by user: code should explicitly check to see if permission is available (with `checkPermission`) or explicitly handle a potential `SecurityException`"
+        errorLine1="        return bluetoothDevice != null &amp;&amp; bleLruHashMap.containsKey(bluetoothDevice.getName() + bluetoothDevice.getAddress());"
+        errorLine2="                                                                    ~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/bluetooth/MultipleBluetoothController.java"
+            line="68"
+            column="69"/>
+    </issue>
+
+    <issue
+        id="DefaultLocale"
+        message="Implicitly using the default locale is a common source of bugs: Use `toUpperCase(Locale)` instead. For strings meant to be internal use `Locale.ROOT`, otherwise `Locale.getDefault()`."
+        errorLine1="        hexString = hexString.toUpperCase();"
+        errorLine2="                              ~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/utils/HexUtil.java"
+            line="103"
+            column="31"/>
+    </issue>
+
+    <issue
+        id="PropertyEscape"
+        message="Windows file separators (`\`) and drive letter separators (&apos;:&apos;) must be escaped (`\\`) in property files; use C\\:/Users/deser/Android/Sdk"
+        errorLine1="sdk.dir=C:/Users/deser/Android/Sdk"
+        errorLine2="         ~">
+        <location
+            file="$HOME/Projects/quartzlamp/local.properties"
+            line="1"
+            column="10"/>
+    </issue>
+
+    <issue
+        id="AndroidGradlePluginVersion"
+        message="A newer version of Gradle than 9.5.1 is available: 9.8.1"
+        errorLine1="distributionUrl=https\://services.gradle.org/distributions/gradle-9.5.1-bin.zip"
+        errorLine2="                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="$HOME/Projects/quartzlamp/gradle/wrapper/gradle-wrapper.properties"
+            line="3"
+            column="17"/>
+    </issue>
+
+    <issue
+        id="LockedOrientationActivity"
+        message="Expecting `android:screenOrientation=&quot;unspecified&quot;` or `&quot;fullSensor&quot;` for this activity so the user can use the application in any orientation and provide a great experience on Chrome OS devices"
+        errorLine1="            android:screenOrientation=&quot;portrait&quot;>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="30"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="NewerVersionAvailable"
+        message="A newer version of org.jetbrains.kotlinx:kotlinx-coroutines-test than 1.10.2 is available: 1.11.0"
+        errorLine1="    testImplementation(&quot;org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2&quot;)"
+        errorLine2="                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="build.gradle.kts"
+            line="108"
+            column="24"/>
+    </issue>
+
+    <issue
+        id="DiscouragedApi"
+        message="Fixed screen orientations will be ignored in most cases, starting from Android 16. Android is moving toward a model where apps are expected to adapt to various orientations, display sizes, and aspect ratios."
+        errorLine1="            android:screenOrientation=&quot;portrait&quot;>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/AndroidManifest.xml"
+            line="30"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="UseRequiresApi"
+        message="Use `@RequiresApi(Build.VERSION_CODES.JELLY_BEAN_MR2) instead of `@TargetApi` to propagate the requirement to users of `BleBluetooth`"
+        errorLine1="@TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)"
+        errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/bluetooth/BleBluetooth.java"
+            line="38"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UseRequiresApi"
+        message="Use `@RequiresApi(Build.VERSION_CODES.JELLY_BEAN_MR2) instead of `@TargetApi` to propagate the requirement to users of `BleConnector`"
+        errorLine1="@TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)"
+        errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/bluetooth/BleConnector.java"
+            line="31"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UseRequiresApi"
+        message="Use `@RequiresApi(Build.VERSION_CODES.JELLY_BEAN_MR2) instead of `@TargetApi` to propagate the requirement to users of `BleGattCallback`"
+        errorLine1="@TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)"
+        errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/callback/BleGattCallback.java"
+            line="13"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UseRequiresApi"
+        message="Use `@RequiresApi(Build.VERSION_CODES.JELLY_BEAN_MR2) instead of `@TargetApi` to propagate the requirement to users of `BleManager`"
+        errorLine1="@TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)"
+        errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/BleManager.java"
+            line="41"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UseRequiresApi"
+        message="Use `@RequiresApi(Build.VERSION_CODES.LOLLIPOP) instead of `@TargetApi` to propagate the requirement to callers of `convertBleDevice`"
+        errorLine1="    @TargetApi(Build.VERSION_CODES.LOLLIPOP)"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/BleManager.java"
+            line="786"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="UseRequiresApi"
+        message="Use `@RequiresApi(Build.VERSION_CODES.JELLY_BEAN_MR2) instead of `@TargetApi` to propagate the requirement to users of `BleScanPresenter`"
+        errorLine1="@TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)"
+        errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/scan/BleScanPresenter.java"
+            line="25"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="UseRequiresApi"
+        message="Use `@RequiresApi(Build.VERSION_CODES.JELLY_BEAN_MR2) instead of `@TargetApi` to propagate the requirement to users of `BleScanner`"
+        errorLine1="@TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)"
+        errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/scan/BleScanner.java"
+            line="20"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 18"
+        errorLine1="@TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)"
+        errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/bluetooth/BleBluetooth.java"
+            line="38"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 31"
+        errorLine1="        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/bluetooth/BleBluetooth.java"
+            line="171"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 18"
+        errorLine1="@TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)"
+        errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/bluetooth/BleConnector.java"
+            line="31"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 31"
+        errorLine1="        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/bluetooth/BleConnector.java"
+            line="459"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 31"
+        errorLine1="        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/bluetooth/BleConnector.java"
+            line="483"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 18"
+        errorLine1="@TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)"
+        errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/callback/BleGattCallback.java"
+            line="13"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 18"
+        errorLine1="@TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)"
+        errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/BleManager.java"
+            line="41"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 31"
+        errorLine1="        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/BleManager.java"
+            line="732"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 31"
+        errorLine1="        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2"
+        errorLine2="               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/BleManager.java"
+            line="749"
+            column="16"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 21"
+        errorLine1="    @TargetApi(Build.VERSION_CODES.LOLLIPOP)"
+        errorLine2="    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/BleManager.java"
+            line="786"
+            column="5"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 18"
+        errorLine1="@TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)"
+        errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/scan/BleScanPresenter.java"
+            line="25"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 18"
+        errorLine1="@TargetApi(Build.VERSION_CODES.JELLY_BEAN_MR2)"
+        errorLine2="~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/scan/BleScanner.java"
+            line="20"
+            column="1"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 31"
+        errorLine1="        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR2) {"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="libs-src/com/clj/fastble/bluetooth/MultipleBluetoothController.java"
+            line="127"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="Unnecessary; `SDK_INT` is always >= 31"
+        errorLine1="        dynamicColor &amp;&amp; Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {"
+        errorLine2="                        ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/java/io/github/deserthouse/quartzlamp/ui/theme/Theme.kt"
+            line="78"
+            column="25"/>
+    </issue>
+
+    <issue
+        id="ObsoleteSdkInt"
+        message="This folder configuration (`v26`) is unnecessary; `minSdkVersion` is 31. Merge all the resources in this folder into `mipmap-anydpi`.">
+        <location
+            file="src/main/res/mipmap-anydpi-v26"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.app_name_en` appears to be unused"
+        errorLine1="    &lt;string name=&quot;app_name_en&quot;>QuartzLamp&lt;/string>"
+        errorLine2="            ~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="4"
+            column="13"/>
+    </issue>
+
+    <issue
+        id="MonochromeLauncherIcon"
+        message="The application adaptive icon is missing a monochrome tag"
+        errorLine1="&lt;adaptive-icon xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;>"
+        errorLine2="^">
+        <location
+            file="src/main/res/mipmap-anydpi-v26/ic_launcher.xml"
+            line="2"
+            column="1"/>
+    </issue>
+
+</issues>
