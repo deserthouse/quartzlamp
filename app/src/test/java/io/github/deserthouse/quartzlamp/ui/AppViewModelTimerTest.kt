@@ -100,4 +100,27 @@ class AppViewModelTimerTest {
         assertTrue(t.close.loaded)
         assertTrue(t.close.weeks[6]) // 0x40 = 周日
     }
+
+    @Test fun `编辑标草稿_保存置已发送-R19-09`() {
+        vm.updateTimerSlot(true, 9, 45, List(7) { false })
+        assertTrue(vm.timer.value.open.dirty)
+        vm.saveTimerSlot(true)
+        val s = vm.timer.value.open
+        assertTrue(s.sent)
+        assertFalse(s.dirty)
+    }
+
+    @Test fun `未设置关灯槽恢复23点默认-R19-09`() {
+        lamp.timerRead = { unsetFrame(open = false) }
+        vm.queryTimerSlot(false)
+        val close = vm.timer.value.close
+        assertEquals(23, close.hour)
+        assertFalse(close.loaded)
+    }
+
+    @Test fun `读回记录读取目标灯-R19-09`() {
+        lamp.timerRead = { setFrame(7, 30, 0x15, open = true) }
+        vm.queryTimerSlot(true)
+        assertEquals("AA", vm.timer.value.open.readFrom) // scanned 空时退 MAC
+    }
 }

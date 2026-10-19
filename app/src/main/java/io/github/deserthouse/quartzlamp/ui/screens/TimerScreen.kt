@@ -98,13 +98,15 @@ private fun TimerCard(
                 Text(
                     when {
                         slot.error -> "读取失败"
-                        !slot.loaded -> "未设置"
-                        else -> "已从灯读回"
+                        slot.dirty -> "草稿未应用"
+                        slot.sent -> "已发送 · 待读回确认"
+                        slot.loaded -> "已从灯读回" + (slot.readFrom?.let { "（$it）" } ?: "")
+                        else -> "未设置"
                     },
                     style = MaterialTheme.typography.labelMedium,
                     color = when {
                         slot.error -> MaterialTheme.colorScheme.error
-                        slot.loaded -> MaterialTheme.colorScheme.primary
+                        slot.dirty || slot.loaded -> MaterialTheme.colorScheme.primary
                         else -> MaterialTheme.colorScheme.onSurfaceVariant
                     }
                 )

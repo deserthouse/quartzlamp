@@ -48,8 +48,13 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            signingConfig = if (hasReleaseCredentials) signingConfigs.getByName("release")
-                else signingConfigs.getByName("debug")
+            // R19-10.3：正式发布缺凭据必须显式失败（此前静默回退 debug 签名）；
+            // 开发验证用 assembleDebug
+            if (!hasReleaseCredentials) throw org.gradle.api.GradleException(
+                "Release 构建需要签名凭据 QUARTZLAMP_STORE_FILE/STORE_PASS/KEY_ALIAS/KEY_PASS" +
+                    "（~/.gradle/gradle.properties）；开发验证请用 assembleDebug"
+            )
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

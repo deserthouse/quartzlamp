@@ -92,9 +92,12 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
         val hour: Int = 7,
         val minute: Int = 0,
         val weeks: List<Boolean> = List(7) { false },
-        val loaded: Boolean = false,
-        val busy: Boolean = false,
-        val error: Boolean = false
+        val loaded: Boolean = false,      // 灯端读到过有效配置
+        val busy: Boolean = false,        // 读取中
+        val error: Boolean = false,       // 最近一次读取失败
+        val dirty: Boolean = false,       // 草稿：编辑过未应用（R19-09）
+        val sent: Boolean = false,        // 已发送未读回确认（无逐灯 ACK，不假成功）
+        val readFrom: String? = null      // 读取目标灯（多灯时=第一盏）
     )
 
     data class TimerUiState(
@@ -131,8 +134,15 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
         _mode.value = _mode.value.copy(speed = v)
     }
 
-    fun sendSpeed(quandeng: Boolean) =
-        lamp.send(LampFrames.speed(_mode.value.speed, quandeng))
+    /**
+     * 速度下发（R19-10.5 拍板）：全灯限幅跟**已选效果**所在分类——我方 tab 为浏览式
+     * （不切换效果），厂商"flag 跟浏览 tab"的前提（切 tab 即切效果）在我方 UI 不成立。
+     * 厂商事实与决策依据见 ble_protocol.md §2.1 帧#5 注。
+     */
+    fun sendSpeed() {
+        val selectedCategory = (_mode.value.selected - 1) / 17
+        lamp.send(LampFrames.speed(_mode.value.speed, selectedCategory == 8))
+    }
 
     fun updateSensitivity(v: Int) {
         _mode.value = _mode.value.copy(sensitivity = v)
@@ -162,37 +172,61 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
 
     // ━━━ 定时：槽位编辑/保存/读取（全部 update{} 原子改） ━━━
 
-    /** 草稿编辑：只改本槽，不动另一槽 */
-    fun updateTimerSlot(open: Boolean, hour: Int, minute: Int, weeks: List<Boolean>) =
-        _timer.update { it.withSlot(open) { s -> s.copy(hour = hour, minute = minute, weeks = weeks) } }
+    /** 草稿编辑：只改本槽并标 dirty（R19-09：编辑后"已读回"文案不得延续） */
+    fun updateTimerSlot(openSlot: Boolean, hour: Int, minute: Int, weeks: List<Boolean>) =
+        _timer.update {
+            it.withSlot(openSlot) { s ->
+                if (s.hour == hour && s.minute == minute && s.weeks == weeks) s
+                else s.copy(hour = hour, minute = minute, weeks = weeks, dirty = true)
+            }
+        }
 
-    /** 应用到灯：保存即下发 timerSet（协议无启用位，F05） */
-    fun saveTimerSlot(open: Boolean) {
-        val s = _timer.value.slot(open)
-        lamp.send(LampFrames.timerSet(s.hour, s.minute, open, weekBits(s.weeks)))
+    /** 应用到灯：保存即下发 timerSet（协议无启用位，F05）；置 sent（不假成功，待读回确认） */
+    fun saveTimerSlot(openSlot: Boolean) {
+        val s = _timer.value.slot(openSlot)
+        lamp.send(LampFrames.timerSet(s.hour, s.minute, openSlot, weekBits(s.weeks)))
+        _timer.update {
+            it.withSlot(openSlot) { it.copy(dirty = false, sent = true) }
+        }
     }
 
-    /** 从灯读取：空配置清空本槽（未设置语义，F06）；失败置 error，不清草稿 */
-    fun queryTimerSlot(open: Boolean) {
+    /**
+     * 从灯读取（R19-09 契约）：busy 防重复请求；读取目标=首个已连接灯（名称入 readFrom）；
+     * 空配置清空本槽（关灯槽恢复 23:00 默认而非 7:00）；读取期间的编辑会被读回结果覆盖
+     * （最后观测优先，注释即策略）。
+     */
+    fun queryTimerSlot(openSlot: Boolean) {
+        if (_timer.value.slot(openSlot).busy) return
+        val target = connectedLampName()
         viewModelScope.launch {
-            _timer.update { it.withSlot(open) { s -> s.copy(busy = true, error = false) } }
-            val info = runCatching { lamp.queryTimer(open) }.getOrNull()
+            _timer.update { it.withSlot(openSlot) { s -> s.copy(busy = true, error = false) } }
+            val info = runCatching { lamp.queryTimer(openSlot) }.getOrNull()
                 ?.let { LampFrames.parseTimerRead(it) }
             _timer.update { cur ->
-                cur.withSlot(open) { s ->
+                cur.withSlot(openSlot) { s ->
                     when {
                         info == null -> s.copy(busy = false, error = true)
-                        !info.isSet -> TimerSlot() // 未设置 → 清空（hour 回默认草稿值，loaded=false）
+                        !info.isSet ->
+                            if (openSlot) TimerSlot()
+                            else TimerSlot(hour = 23, minute = 0) // 关灯槽保留 23 点默认
                         else -> TimerSlot(
                             hour = info.hour,
                             minute = info.minute,
                             weeks = List(7) { i -> info.weekEnabled(i) },
-                            loaded = true
+                            loaded = true,
+                            readFrom = target
                         )
                     }
                 }
             }
         }
+    }
+
+    /** 定时读取目标：首个已连接灯（名称缺失退 MAC） */
+    private fun connectedLampName(): String? {
+        val mac = lamp.sessions.value.filterValues { it == SessionState.CONNECTED }.keys.firstOrNull()
+            ?: return null
+        return lamp.scanned.value.firstOrNull { it.mac == mac }?.name ?: mac
     }
 
     private fun TimerUiState.slot(openSlot: Boolean): TimerSlot = if (openSlot) open else close

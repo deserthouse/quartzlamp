@@ -104,9 +104,9 @@ fun ModeScreen(vm: AppViewModel) {
     val mode by vm.mode.collectAsState()
     val conn by vm.state.collectAsState()
     var tab by remember { mutableIntStateOf(mode.tab) }
-    // 厂商同语义：isInQuandengMode 由 mode$4.onTabSelected 汇合点(01d9)在每次切 tab 时按"当前tab==全灯tab"
-    // 重估（全 dex 仅此一处写点），故按浏览 tab 判定即厂商行为；速度限幅=上限70
-    val quandeng = tab == 8
+    // 浏览 tab 仅用于网格内容（我方 UI 浏览不切效果）；速度限幅跟已选效果分类（R19-10.5 拍板，
+    // 厂商 flag 随 tab 的前提"切 tab 即发模式帧"在我方浏览式 UI 不成立，详见 ble_protocol.md §2.1）
+    val selectedQuandeng = (mode.selected - 1) / 17 == 8
 
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
@@ -244,9 +244,10 @@ fun ModeScreen(vm: AppViewModel) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 ControlSlider(
                     label = "速度", value = mode.speed, range = 0f..100f,
-                    quandengNote = if (quandeng) "（全灯类上限 70）" else null,
+                    // 限幅跟已选效果（R19-10.5）：注记也按已选分类显示，不跟浏览 tab
+                    quandengNote = if (selectedQuandeng) "（已选全灯类，上限 70）" else null,
                     onDrag = { vm.updateSpeed(it) },
-                    onRelease = { vm.sendSpeed(quandeng) }
+                    onRelease = { vm.sendSpeed() }
                 )
                 Spacer(Modifier.height(4.dp))
                 ControlSlider(

@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!-- 存量 lint 锁定（R19-10.2 口径澄清）：
+     21 项 MissingPermission 全部位于收编的 FastBle libs-src（上游库不做运行时权限自查）；
+     本项目侧的运行时权限门在 ScanScreen（BLUETOOTH_SCAN/CONNECT 授予后才扫描）与
+     RhythmScreen（RECORD_AUDIO/READ_MEDIA_AUDIO）。ObsoleteSdkInt/UseRequiresApi 亦在
+     libs-src。此处为受控存量，新代码新增问题仍会报错。 -->
+<!-- 由 updateLintBaseline 生成；请勿手改 issue 条目，仅可维护本注释。 -->
 <issues format="6" by="lint 9.2.1" type="baseline" client="gradle" dependencies="false" name="AGP (9.2.1)" variant="all" version="9.2.1">
 
     <issue
