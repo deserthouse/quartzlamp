@@ -10,18 +10,19 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import java.util.ArrayDeque
 
 /**
  * 假灯——AVD/无灯环境的全流程自测实现（仅存在于 debug 变体，release 物理隔离，F11）。
  *
- * 行为契约与真实实现同构（F11 关闭条件：模拟不再跳过将被宣称验证的逻辑）：
- * - 两台假灯可同时连接，sessions 按 MAC 维护，disconnect(mac) 只断一台；
- * - 定时查询=真事务语义：send 的 timerSet 帧被记录，queryTimer 读回**所写槽位**（写读闭环）；
- * - 失败注入：failNextQueries>0 时查询返回 null；unexpectedDisconnect(mac) 模拟意外断连
- *   （触发有限重连，参数与真实实现对齐且可注入缩短）；
+ * 行为契约与真实实现同构（R19-03/07 复审修复后）：
+ * - 扫描是独立事实：停止/超时/启动失败后聚合态归位、可再扫（真实现同语义）；
+ * - 连接 Job 按 MAC 持有：断 A 不影响连接中的 B（R19-07 假灯侧反例修复）；
+ * - 两台假灯可同时连接，sessions 按 MAC 维护；
+ * - 定时查询=写读闭环（timerSet 帧被记录，queryTimer 读回所写槽位）；
+ * - 失败注入：failNextQueries / unexpectedDisconnect（有限重连，参数可缩短）；
  * - 扫描/连接 Job 可取消（stopScan 后不再回填设备）。
  */
 class FakeLampConnection : LampConnection {
@@ -31,6 +32,10 @@ class FakeLampConnection : LampConnection {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val _state = MutableStateFlow(ConnState.DISCONNECTED)
     override val state: StateFlow<ConnState> = _state
+
+    /** 扫描独立事实（R19-03，与真实实现同语义） */
+    private val scanning = MutableStateFlow(false)
+
     private val _scanned = MutableStateFlow<List<ScannedLamp>>(emptyList())
     override val scanned: StateFlow<List<ScannedLamp>> = _scanned
     override val frameLog: SharedFlow<String> = LampConnection.sharedFrameLog
@@ -46,38 +51,48 @@ class FakeLampConnection : LampConnection {
         ScannedLamp("FakeLamp-1102", "AA:BB:CC:DD:EE:FF", -61)
     )
 
-    // ━━━ 失败注入钩子（仅 debug）━━━
+    // ━━━ 测试注入钩子（仅 debug）━━━
     /** >0 时接下来 N 次定时查询返回 null（写失败路径） */
     var failNextQueries = 0
-    /** 连接建立延时（测试可缩短） */
+    /** 连接建立延时 */
     var connectDelayMs = 1_000L
-    /** 意外断连重连间隔（测试可缩短） */
+    /** 意外断连重连间隔 */
     var reconnectDelayMs = RECONNECT_INTERVAL_MS
     /** 意外断连后重连是否成功（false=耗尽间隔落 DISCONNECTED） */
     var reconnectSucceeds = true
+    /** 扫描出灯延时 */
+    var scanDelayMs = 2_000L
+    /** 扫描窗口总长（到时自动结束） */
+    var scanTimeoutMs = 8_000L
 
     private val scanJobs = mutableListOf<Job>()
-    private val connectJobs = mutableListOf<Job>()
 
-    /** 各槽位灯端配置：open→(hour,minute,weekBits)；0xFF=未设置 */
+    /** 连接 Job 按 MAC（R19-07：断 A 只取消 A） */
+    private val connectJobsByMac = mutableMapOf<String, Job>()
+    private val reconnectJobs = mutableMapOf<String, Job>()
+
+    /** 各槽位灯端配置：open→(hour,minute,weekBits) */
     private val lampTimers = mutableMapOf<Boolean, Triple<Int, Int, Int>>()
 
     override fun startScan() {
-        if (_state.value == ConnState.SCANNING) return
+        if (scanning.value) return
+        scanning.value = true
         _scanned.value = emptyList()
         _state.value = ConnState.SCANNING
         scanJobs += scope.launch {
-            delay(2000)
+            delay(scanDelayMs)
             _scanned.value = fakeLamps
-            delay(6000)
-            if (_state.value == ConnState.SCANNING) _state.value = aggregated()
+            delay((scanTimeoutMs - scanDelayMs).coerceAtLeast(0))
+            scanning.value = false
+            _state.value = aggregated()
         }
     }
 
     override fun stopScan() {
         scanJobs.forEach { it.cancel() }
         scanJobs.clear()
-        if (_state.value == ConnState.SCANNING) _state.value = aggregated()
+        scanning.value = false
+        _state.value = aggregated()
     }
 
     override fun connect(lamp: ScannedLamp) {
@@ -86,7 +101,7 @@ class FakeLampConnection : LampConnection {
             _sessions.value[lamp.mac] == SessionState.CONNECTING
         ) return
         _sessions.update { it + (lamp.mac to SessionState.CONNECTING) }
-        connectJobs += scope.launch {
+        connectJobsByMac[lamp.mac] = scope.launch {
             delay(connectDelayMs)
             _sessions.update { it + (lamp.mac to SessionState.CONNECTED) }
             val c = java.util.Calendar.getInstance()
@@ -101,8 +116,8 @@ class FakeLampConnection : LampConnection {
     }
 
     override fun disconnect(mac: String) {
-        connectJobs.forEach { it.cancel() }
-        connectJobs.clear()
+        // 只取消本 MAC 的连接任务（R19-07：断 A 不拖死连接中的 B）
+        connectJobsByMac.remove(mac)?.cancel()
         _sessions.update { it + (mac to SessionState.DISCONNECTED) }
         refresh()
     }
@@ -129,14 +144,12 @@ class FakeLampConnection : LampConnection {
         }
     }
 
-    private val reconnectJobs = mutableMapOf<String, Job>()
-
     override fun send(frame: ByteArray) {
         val hex = LampFrames.hex(frame)
         Log.d("BLE-WRITE", hex)
         LampConnection.sharedFrameLog.tryEmit(hex)
         recordFrame(hex)
-        // 假灯端存储：timerSet 帧写入槽位，queryTimer 才能读回（F11 写读闭环）
+        // 假灯端存储：timerSet 帧被记录，queryTimer 才能读回（F11 写读闭环）
         if (frame.size == 9 && frame[0] == 0x7E.toByte() && frame[2] == 0x82.toByte()) {
             val hour = frame[3].toInt()
             if (hour != -1) {
@@ -181,14 +194,15 @@ class FakeLampConnection : LampConnection {
 
     private fun aggregated(): ConnState = when {
         _sessions.value.containsValue(SessionState.CONNECTED) -> ConnState.CONNECTED
-        _state.value == ConnState.SCANNING -> ConnState.SCANNING
+        scanning.value -> ConnState.SCANNING
         _sessions.value.containsValue(SessionState.CONNECTING) ||
             _sessions.value.containsValue(SessionState.RECONNECTING) -> ConnState.CONNECTING
         else -> ConnState.DISCONNECTED
     }
 
     private fun refresh() {
-        if (_state.value != ConnState.SCANNING) _state.value = aggregated()
+        // 扫描事实独立于连接聚合：聚合函数自身先判已连接、再判扫描事实
+        _state.value = aggregated()
     }
 
     companion object {

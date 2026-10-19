@@ -103,4 +103,41 @@ class FakeLampContractTest {
         assertEquals(SessionState.DISCONNECTED, fake.sessions.value[mac])
         Unit
     }
+
+    @Test fun `停止扫描无连接时归位可再扫-R19-03`() = runBlocking {
+        val fake = FakeLampConnection().apply { scanDelayMs = 50; scanTimeoutMs = 500 }
+        fake.startScan()
+        assertEquals(ConnState.SCANNING, fake.state.value)
+        fake.stopScan()
+        assertEquals(ConnState.DISCONNECTED, fake.state.value)
+        fake.startScan()
+        assertEquals(ConnState.SCANNING, fake.state.value)
+        fake.stopScan()
+        assertEquals(ConnState.DISCONNECTED, fake.state.value)
+        Unit
+    }
+
+    @Test fun `扫描超时自然结束归位-R19-03`() = runBlocking {
+        val fake = FakeLampConnection().apply { scanDelayMs = 20; scanTimeoutMs = 120 }
+        fake.startScan()
+        Thread.sleep(400)
+        assertEquals(ConnState.DISCONNECTED, fake.state.value)
+        assertTrue(fake.scanned.value.isNotEmpty()) // 设备仍可见
+        Unit
+    }
+
+    @Test fun `连接中取消单台不影响另一台-R19-07`() = runBlocking {
+        val fake = FakeLampConnection().apply { connectDelayMs = 200 }
+        val (a, b) = fake.fakeLamps
+        fake.connect(a)
+        fake.connect(b)
+        Thread.sleep(80) // 两台都在 CONNECTING
+        fake.disconnect(a.mac)
+        assertEquals(SessionState.DISCONNECTED, fake.sessions.value[a.mac])
+        assertEquals(SessionState.CONNECTING, fake.sessions.value[b.mac])
+        awaitConnected(fake, b.mac) // B 不被 A 的取消拖死
+        assertEquals(SessionState.DISCONNECTED, fake.sessions.value[a.mac])
+        Unit
+    
+}
 }
