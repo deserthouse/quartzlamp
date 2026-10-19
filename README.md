@@ -1,13 +1,10 @@
-# QuartzLamp（拾音灯）
+# QuartzLamp
 
 Lenze Tech「拾音灯」硬件的自有 Android 控制器——Material 3 Expressive 重制版。
 
-**名字的彩蛋**：拾音（shíyīn）≈ 石英（shíyīng）——原厂包名 `quartzlamp` 的谐音玩笑。
-中文名「拾音灯」说功能，英文名 QuartzLamp 收下这个梗：一盏名字听着像另一种灯的、会听声音的灯。
-
 ## 功能
 
-- **调色**：色相环取色、饱和度/亮度厚轨道，8 预设色，电源主操作
+- **调色**：色环取色、饱和度/亮度厚轨道，8 预设色，电源主操作
 - **灯效**：153 种内置灯效（9 分类 × 17），完整原名 + 名称色示意条，速度/灵敏度
 - **律动**：三源切换——手机麦克风 / 灯载麦克风 / 本地音乐（Visualizer 频谱驱动）；
   四种拾音风格与灵敏度对灯端生效。停止聆听=停止发送律动帧，灯保持最后颜色
@@ -32,7 +29,7 @@ Lenze Tech「拾音灯」硬件的自有 Android 控制器——Material 3 Expre
 ```
 
 Release 签名凭据走 `~/.gradle/gradle.properties`（QUARTZLAMP_* 四键），
-缺失时自动回退 debug 签名。
+**缺失时构建显式失败（不回退 debug 签名）**。
 
 ## 文档
 
@@ -53,3 +50,66 @@ Release 签名凭据走 `~/.gradle/gradle.properties`（QUARTZLAMP_* 四键）�
 - 软件按"现状"提供，使用后果自负；BLE 指令仅面向该拾音灯硬件。
   Provided as-is, without warranty of any kind; use at your own risk. BLE commands target
   this lamp hardware only.
+
+---
+
+## English
+
+An unofficial Material 3 Expressive Android controller for the Lenze Tech
+sound-reactive lamp ("拾音灯"), rebuilt from scratch.
+
+### Features
+
+- **Color**: hue wheel, saturation/brightness thick-track sliders, 8 presets,
+  power as the primary action
+- **Effects**: 153 built-in effects (9 categories × 17) with original names and
+  name-color hint bars; speed/sensitivity controls
+- **Rhythm**: three sources — phone microphone / lamp's own microphone / local music
+  (Visualizer-driven). Four pickup styles and the pickup sensitivity apply to the lamp.
+  Stopping listening stops sending reactive frames; the lamp keeps its last color
+  (protocol frame #6 carries hue/saturation only — no brightness; volume→brightness is a
+  future candidate requiring frame #11 RGB verification)
+- **Timer**: weekly on/off schedules stored on the lamp and readable back
+  (no "enable" switch — the protocol has no such bit; saving sends immediately,
+  reading an "unset" slot clears it)
+- **Devices**: multi-lamp management with per-device connect/disconnect/reconnect;
+  commands broadcast to all connected lamps; limited auto-reconnect after unexpected
+  disconnects (3 × 4s), manual disconnects never fight back
+
+### Technical Highlights
+
+- Kotlin + Compose + Material 3 Expressive (material3 1.5.0-alpha22 line)
+- BLE: FastBle 2.3.4 vendored as source (`app/libs-src/`, Apache-2.0, see `third_party/`) —
+  the same transport the vendor app uses; frame table at `docs/ble_protocol.md`
+  (14 frames, extracted from disassembly and locked by unit tests)
+- minSdk 31 / targetSdk 37 · single `:app` module, no DI · emulators auto-switch to a
+  fake lamp (`FakeLampConnection`) for development without hardware
+
+### Build
+
+```bash
+./gradlew assembleDebug    # requires JDK 21 (AGP 9 hard requirement; system JDK 11 fails)
+./gradlew testDebugUnitTest
+```
+
+Release signing reads `~/.gradle/gradle.properties` (four `QUARTZLAMP_*` keys);
+**the build fails explicitly if they are missing (no debug-signing fallback)**.
+
+### Docs
+
+- `docs/ble_protocol.md` — BLE protocol frame table (single source of truth)
+- `docs/acceptance.md` — acceptance checklist (emulator-verified + on-device + protocol arbitrations)
+- `project_status.md` — project status (Chinese)
+
+---
+
+## 名字的彩蛋 / About the Name
+
+中文名「拾音灯」说的是功能：拾取声音的灯。英文名 QuartzLamp 收下了原厂包名 `quartzlamp`
+里藏的谐音玩笑——拾音（shíyīn）≈ 石英（shíyīng）。于是这是一盏名字听着像另一种灯的、
+会听声音的灯。
+
+The Chinese name 拾音灯 ("sound-picking lamp") says what it does. The English name
+QuartzLamp embraces the pun hidden in the vendor's package name `quartzlamp`:
+拾音 (shíyīn, "to pick up sound") ≈ 石英 (shíyīng, "quartz"). Hence — a lamp that
+listens, named after a rock it is not.
