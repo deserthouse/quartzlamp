@@ -51,7 +51,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,12 +61,10 @@ import androidx.core.content.ContextCompat
 import io.github.deserthouse.quartzlamp.audio.MicEngine
 import io.github.deserthouse.quartzlamp.audio.WaveformLevel
 import io.github.deserthouse.quartzlamp.ui.AppViewModel
+import io.github.deserthouse.quartzlamp.ui.RhythmSource
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
-
-/** 律动屏三源（审查 §6.3：手机麦 / 灯载麦 / 本地音乐） */
-private enum class RhythmSource(val label: String) {
-    PHONE_MIC("手机麦"), LAMP_MIC("灯载麦"), MUSIC("本地音乐")
-}
+import kotlinx.coroutines.withContext
 
 private data class Song(val title: String, val artist: String, val uri: Uri, val id: Long)
 
@@ -82,7 +79,7 @@ private fun audioPermissionName(): String =
  */
 @Composable
 fun RhythmScreen(vm: AppViewModel) {
-    var source by rememberSaveable { mutableStateOf(RhythmSource.PHONE_MIC) }
+    val source by vm.rhythmSource.collectAsState()
 
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
@@ -94,7 +91,7 @@ fun RhythmScreen(vm: AppViewModel) {
             RhythmSource.entries.forEachIndexed { i, s ->
                 SegmentedButton(
                     selected = source == s,
-                    onClick = { source = s },
+                    onClick = { vm.selectRhythmSource(s) },
                     shape = SegmentedButtonDefaults.itemShape(i, RhythmSource.entries.size),
                     icon = {}
                 ) { Text(s.label) }
@@ -248,9 +245,22 @@ private fun MusicPanel(vm: AppViewModel) {
                     PackageManager.PERMISSION_GRANTED
         )
     }
+    var loading by remember { mutableStateOf(false) }
+    var loadError by remember { mutableStateOf(false) }
     val permLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { map ->
         hasPermission = map.values.all { it }
-        if (hasPermission) songs = querySongs(context)
+    }
+    // R19-02：已授权进入/重进/授权回调三路统一由此 effect 加载（IO 线程，异常转错误态）
+    LaunchedEffect(hasPermission) {
+        if (hasPermission) {
+            loading = true; loadError = false
+            try {
+                songs = withContext(Dispatchers.IO) { querySongs(context) }
+            } catch (_: Exception) {
+                loadError = true
+            }
+            loading = false
+        }
     }
 
     val player = remember { MediaPlayer() }
@@ -371,6 +381,11 @@ private fun MusicPanel(vm: AppViewModel) {
                 androidx.compose.material3.Button(onClick = {
                     permLauncher.launch(arrayOf(audioPermissionName(), Manifest.permission.RECORD_AUDIO))
                 }) { Text("授予权限") }
+            } else if (loading) {
+                androidx.compose.material3.CircularProgressIndicator(Modifier.size(28.dp))
+            } else if (loadError) {
+                Text("曲目加载失败，切回本页重试", style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error)
             } else if (songs.isEmpty()) {
                 Text(
                     "设备中没有可播放的音频",
