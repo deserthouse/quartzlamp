@@ -5,23 +5,20 @@
 An unofficial Material 3 Expressive Android controller for the Lenze Tech
 sound-reactive lamp ("拾音灯"), rebuilt from scratch.
 
-## Features
+## Features (three tabs: Device / Lights / Timer)
 
-- **Color**: hue wheel, saturation/brightness thick-track sliders, 8 presets,
-  power as the primary action
-- **Effects**: 153 built-in effects (9 categories × 17) with original names and
-  name-color hint bars; speed/sensitivity controls
-- **Rhythm**: three sources — phone microphone / lamp's own microphone / local music
-  (Visualizer-driven). Four pickup styles and the pickup sensitivity apply to the lamp.
-  Stopping listening stops sending reactive frames; the lamp keeps its last color
-  (protocol frame #6 carries hue/saturation only — no brightness; volume→brightness is a
-  future candidate requiring frame #11 RGB verification)
-- **Timer**: weekly on/off schedules stored on the lamp and readable back
-  (no "enable" switch — the protocol has no such bit; saving sends immediately,
-  reading an "unset" slot clears it)
-- **Devices**: multi-lamp management with per-device connect/disconnect/reconnect;
-  commands broadcast to all connected lamps; limited auto-reconnect after unexpected
-  disconnects (3 × 4s), manual disconnects never fight back
+- **Device**: power as the primary action + brightness (a global parameter — applies in
+  both static-color and effect modes) + connection management (multi-lamp, per-device
+  connect/disconnect/reconnect; limited auto-reconnect 3×4s after unexpected drops,
+  manual disconnects never fight back) + lamp pickup configuration (four pickup styles
+  and sensitivity for the lamp's own microphone)
+- **Lights**: `Static | Effect` segmented toggle, applied exclusively —
+  Static = hue wheel + 8 presets (BC04 static color); Effect = 153 built-in effects
+  (9 categories × 17) with original names, name-color hint bars, speed/sensitivity
+- **Timer**: weekly on/off schedules (two hardware slots), stored on the lamp and
+  readable back (no "enable" switch — the protocol has no such bit; saving sends
+  immediately, reading an "unset" slot clears it)
+- Top-bar ⚙️: quartz / dynamic-color theme toggle, about & declarations
 
 ## Technical Highlights
 
