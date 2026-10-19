@@ -21,3 +21,13 @@ tests/apk_analysis/dexdump*.txt
 .DS_Store
 Thumbs.db
 fastble-src/
+
+# 内部工作底稿——不入公开仓（本地保留；2026-10-20 开仓净化）
+.internal-backup/
+docs/review_2026-*.md
+docs/review_visual_direction.html
+docs/workorder_*.md
+docs/handoff_visual_audit.md
+tests/review/
+tests/review_2026-*/
+tests/apk_analysis/res_dump.txt
