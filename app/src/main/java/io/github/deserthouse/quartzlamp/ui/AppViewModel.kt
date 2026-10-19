@@ -14,6 +14,12 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+/** 灯模式（U3/D2：单色=静态颜色，灯效=效果编号——互斥的两种存在状态） */
+sealed class LampMode {
+    data class Static(val hue: Int, val sat: Float) : LampMode()
+    data class Effect(val index: Int) : LampMode()
+}
+
 /**
  * 全局唯一 ViewModel：连接状态 + 各页控制语义（帧构造全走 protocol 层）。
  * 厂商默认值（ble_protocol.md §4）：speed=50, sensitivity=50。
@@ -40,6 +46,10 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
 
     private val _color = MutableStateFlow(ColorState())
     val color: StateFlow<ColorState> = _color
+
+    /** 灯模式（V/U3）：setColor(send)→Static；selectEffect→Effect。预览拖动不改模式。 */
+    private val _lampMode = MutableStateFlow<LampMode>(LampMode.Effect(1)) // 厂商 initView 默认索引 1
+    val lampMode: StateFlow<LampMode> = _lampMode
 
     // ━━━ 模式 ━━━
     data class ModeState(
@@ -94,7 +104,10 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
 
     fun setColor(hue: Int, sat: Float, send: Boolean = true) {
         _color.value = _color.value.copy(hue = hue, sat = sat)
-        if (send) lamp.send(LampFrames.colorStatic(hue, sat))
+        if (send) {
+            lamp.send(LampFrames.colorStatic(hue, sat))
+            _lampMode.value = LampMode.Static(hue, sat)
+        }
     }
 
     fun updateBrightness(v: Int) {
@@ -107,6 +120,7 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
     fun selectEffect(tab: Int, position: Int, deviceIndex: Int) {
         _mode.value = _mode.value.copy(tab = tab, selected = deviceIndex)
         lamp.send(LampFrames.modeSelect(deviceIndex))
+        _lampMode.value = LampMode.Effect(deviceIndex)
     }
 
     fun updateSpeed(v: Int) {

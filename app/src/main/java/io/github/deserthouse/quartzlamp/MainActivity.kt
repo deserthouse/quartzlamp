@@ -45,8 +45,7 @@ import androidx.navigation.compose.rememberNavController
 import io.github.deserthouse.quartzlamp.ble.ConnState
 import io.github.deserthouse.quartzlamp.ui.AppViewModel
 import io.github.deserthouse.quartzlamp.ui.screens.DeviceScreen
-import io.github.deserthouse.quartzlamp.ui.screens.ColorScreen
-import io.github.deserthouse.quartzlamp.ui.screens.ModeScreen
+import io.github.deserthouse.quartzlamp.ui.screens.LightsScreen
 import io.github.deserthouse.quartzlamp.ui.screens.SettingsScreen
 import io.github.deserthouse.quartzlamp.ui.screens.TimerScreen
 import io.github.deserthouse.quartzlamp.ui.theme.QuartzLampTheme
@@ -137,7 +136,7 @@ private fun MainScaffold(vm: AppViewModel) {
             popExitTransition = { slideOutHorizontally { it / 4 } + fadeOut() }
         ) {
             composable("device") { DeviceScreen(vm) }
-            composable("lights") { ModeScreen(vm) } // P2 临时挂靠，P4 合并页
+            composable("lights") { LightsScreen(vm) }
             composable("timer") { TimerScreen(vm) }
             composable("settings") { SettingsScreen() }
         }
