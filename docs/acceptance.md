@@ -1,7 +1,9 @@
 # QuartzLamp（拾音灯）v0.3.0 统一验收包
 
 > V 系列重构后首版（2026-10-20）：三 tab 重排（设备/灯光/定时）+ 律动下线 + 灯光合并页。
-> 终版产物：`app/build/outputs/apk/release/app-release.apk`
+> 终版产物：`app/build/outputs/apk/release/app-release.apk`（**0.4.0 / versionCode 4**，
+> 构建时间 2026-10-20 05:34:31 +0800 · MD5 `be4e32cca617bf29df034a701c9f77ab`
+> · SHA-256 前缀 `536a5421`；V2 签名，dex 无假灯代码；R20 整改后重建）
 > **构建时间 2026-10-20 02:56:20 +0800 · MD5 `3f4e6a132209b55a1dcf3215a1108a7f`
 > · SHA-256 前缀 `9fd95121`**（versionCode 3 / 0.3.0，V2 签名；含 2026-10-20 拉通审四修复：
 > 色环命中/转圈正方形约束/设备行圆角/灯光控制条钉底）。
