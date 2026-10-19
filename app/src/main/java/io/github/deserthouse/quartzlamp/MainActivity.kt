@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -31,13 +30,24 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.outlined.Bluetooth
+import androidx.compose.material3.IconButton
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.rememberNavController
 import io.github.deserthouse.quartzlamp.ble.ConnState
-import io.github.deserthouse.quartzlamp.ble.SessionState
 import io.github.deserthouse.quartzlamp.ui.AppViewModel
-import io.github.deserthouse.quartzlamp.ui.screens.AboutScreen
+import io.github.deserthouse.quartzlamp.ui.screens.ScanScreen
 import io.github.deserthouse.quartzlamp.ui.screens.ColorScreen
 import io.github.deserthouse.quartzlamp.ui.screens.ModeScreen
-import io.github.deserthouse.quartzlamp.ui.screens.ScanScreen
+import io.github.deserthouse.quartzlamp.ui.screens.SettingsScreen
 import io.github.deserthouse.quartzlamp.ui.screens.TimerScreen
 import io.github.deserthouse.quartzlamp.ui.theme.QuartzLampTheme
 
@@ -59,28 +69,25 @@ class MainActivity : ComponentActivity() {
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
 
-/** 四入口（2026-10-15 拍板）：调色/灯效/律动/定时；扫描收进顶栏设备胶囊 */
+/** 三 tab（V 系列定案）：设备（起始，D4——每次启动先连接）/ 灯光（单色|灯效）/ 定时。 */
 private val tabs = listOf(
-    Tab("color", "调色", Icons.Filled.Palette),
-    Tab("mode", "灯效", Icons.Filled.AutoAwesome),
+    Tab("device", "设备", Icons.Outlined.Bluetooth),
+    Tab("lights", "灯光", Icons.Filled.Lightbulb),
     Tab("timer", "定时", Icons.Filled.Schedule),
 )
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MainScaffold(vm: AppViewModel) {
     val nav = rememberNavController()
     val state by vm.state.collectAsState()
-    val sessions by vm.sessions.collectAsState()
     val backStack by nav.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
 
-    val connectedCount = sessions.count { it.value == SessionState.CONNECTED }
-    val connLabel = when {
-        state == ConnState.SCANNING -> "扫描中"
-        connectedCount > 0 -> "已连接 ×$connectedCount"
-        state == ConnState.CONNECTING -> "连接中"
-        else -> "未连接"
+    val connLabel = when (state) {
+        ConnState.CONNECTED -> "已连接"
+        ConnState.CONNECTING -> "连接中"
+        ConnState.SCANNING -> "扫描中"
+        ConnState.DISCONNECTED -> "未连接"
     }
 
     Scaffold(
@@ -88,29 +95,18 @@ private fun MainScaffold(vm: AppViewModel) {
             TopAppBar(
                 title = { Text("拾音灯 · $connLabel") },
                 actions = {
-                    // 全局设备胶囊（连接管理入口）
-                    Surface(
-                        shape = CircleShape,
-                        color = if (connectedCount > 0) MaterialTheme.colorScheme.primaryContainer
-                        else MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = if (connectedCount > 0) MaterialTheme.colorScheme.onPrimaryContainer
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier
-                            .padding(end = 16.dp)
-                            .clickable { nav.navigate("scan") }
+                    IconButton(
+                        onClick = { nav.navigate("settings") { launchSingleTop = true } },
+                        modifier = Modifier.padding(end = 12.dp)
                     ) {
-                        Text(
-                            "设备",
-                            style = MaterialTheme.typography.labelLarge,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                        )
+                        Icon(Icons.Filled.Settings, contentDescription = "设置")
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors()
             )
         },
         bottomBar = {
-            if (currentRoute != "scan") {
+            if (currentRoute != "settings") {
                 NavigationBar {
                     tabs.forEach { tab ->
                         NavigationBarItem(
@@ -132,14 +128,18 @@ private fun MainScaffold(vm: AppViewModel) {
     ) { padding ->
         NavHost(
             navController = nav,
-            startDestination = "color",
-            modifier = Modifier.padding(padding)
+            startDestination = "device", // D4：冷启固定落设备 tab
+            modifier = Modifier.padding(padding),
+            // U6 预测式返回配套：水平滑动转场（进入右滑入，返回镜像）
+            enterTransition = { slideInHorizontally { it / 4 } + fadeIn() },
+            exitTransition = { slideOutHorizontally { -it / 4 } + fadeOut() },
+            popEnterTransition = { slideInHorizontally { -it / 4 } + fadeIn() },
+            popExitTransition = { slideOutHorizontally { it / 4 } + fadeOut() }
         ) {
-            composable("color") { ColorScreen(vm) }
-            composable("mode") { ModeScreen(vm) }
+            composable("device") { ScanScreen(vm) } // P2 临时挂靠，P3 成型 DeviceScreen
+            composable("lights") { ModeScreen(vm) } // P2 临时挂靠，P4 合并页
             composable("timer") { TimerScreen(vm) }
-            composable("scan") { ScanScreen(vm, onAbout = { nav.navigate("about") }) }
-            composable("about") { AboutScreen() }
+            composable("settings") { SettingsScreen() }
         }
     }
 }
