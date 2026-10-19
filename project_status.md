@@ -21,9 +21,8 @@
 
 1. **厂商 App 是纯 BLE 遥控器，无云端依赖**。无 INTERNET 权限、无账号、无 OTA、无分析 SDK——
    所有控制逻辑都在客户端，不存在"服务器侧黑盒"这一不可复刻层。这是可行性的决定性因素。
-2. **协议关键面已打通**：GATT 服务 `FFF0`、写特征 `FFF3`、写参数（带响应/顺序发/200ms 超时）、
-   多灯广播模式、帧结构（帧头 `0xBC` + 指令 + 参数 + 帧尾 `0x55`，定长 10 字节起步）、
-   一个已实证的调色帧 `BC 04 06 02 B B R 00 00 55`。
+2. **协议关键面已打通**：GATT 服务 `FFF0`、写特征 `FFF3`、写参数与帧结构以
+   `docs/ble_protocol.md` §1 为准（R0 已纠正写参数语义与调色帧编码，本节不重复维护）。
 3. **剩余协议可完整提取**：全部指令发送收敛于单点 `MyApplication.write([B)`，dex 未混淆，
    反汇编该方法的所有调用点即可得到完整帧表；且原厂 App 的 `Log.d("BLE-WRITE")` 在正式包中
    仍然生效——真机装原厂 App 跑一遍 UI、logcat 抓帧即为金标准，可与静态提取交叉验证。
@@ -68,9 +67,9 @@ FastBle 类永不直接进入 UI 层。** 自写封装与 Nordic 库降级为兜
 3. 停更风险评估：FastBle 是 framework BLE API 的薄封装（这些年只加方法不删方法），
    且厂商 App 至今在 Play 分发（targetSdk 31、Android 12+ 新权限模型实测可用），实际风险低。
 
-依赖落地（jcenter 已死、Maven Central 无、JitPack 无官方构建）：
-**AAR 内嵌 `app/libs/`**（Apache-2.0 可合法内嵌，构建零外部仓库依赖，永久可复现），
-来源核对后提交；`build.gradle.kts` 用 `files("libs/FastBleLib-2.3.4.aar")` 引入。
+依赖落地（jcenter 已死、Maven Central 无、JitPack 无官方构建；**2026-10-19 纠正：下述 AAR 为早期计划，实际未走**）：
+**源码收编 `app/libs-src/`**（Apache-2.0，版本锁官方 commit d89126c，类清单+方法签名双向核对；
+比 AAR 更可审计、可与 lint baseline 分界，构建零外部仓库依赖）。
 M0 时对比厂商 dex 内 FastBle 类集与 2.3.4 确认版本一致（厂商 compileSdk 31 时代对应末版 2.3.4）。
 
 架构纪律不变：BLE 层收在 `LampConnection` Flow 门面后——这是分层卫生（vendor 库不进 UI），
@@ -226,6 +225,27 @@ M0 时对比厂商 dex 内 FastBle 类集与 2.3.4 确认版本一致（厂商 c
     视觉明显改善，但交互/大字适配未过，不替用户签审美。
   - 本轮只有审查材料与状态变更，应用代码未修复；证据在 `tests/review_2026-10-19/`。
     先关闭P1，再重跑真灯与用户审美终验；本轮无真手机+真灯证据。
+- ✅ **主力研判（2026-10-19 本轮）：R19-01~10 共 10 项全部采纳**，逐条独立核证（不盲从审查）：
+  - **代码级坐实**：R19-01 全文件唯一 `setMicSource(true)`@RhythmScreen:140，灯载麦面板零帧；
+    R19-02 `querySongs` 仅在权限回调@253 触发，无进入时加载；R19-03 `aggregatedState()` 内
+    `_state==SCANNING→SCANNING` 自证循环，onScanFinished/stopScan 复位成空操作（真/假同株）；
+    R19-05 RhythmScreen+MicEngine 生命周期引用=0，DisposableEffect 不覆盖 HOME；
+    R19-08 RhythmScreen 无 verticalScroll（W3 只走了调色/定时两屏，律动屏未查——**我方自首**）。
+  - **几何级坐实**：R19-06 sweepGradient 原点=右（3 点钟）vs pickFrom/指示器原点=顶（12 点钟），
+    恒差 90°；drawArc(startAngle) 不旋转 brush。
+  - **结构级坐实**：R19-04 send() 不持锁+258 行注释断言与收编源相悖（BleBluetooth 按特征覆盖
+    写回调）；R19-07 real disconnect 只查 devices 表（CONNECTING 句柄漏）+fake 全量取消 connectJobs。
+  - **采纳附注两条**：R19-10 限幅子项——我方 R0"flag 随 tab"的**事实层**驳回仍成立（复审亦确认），
+    但复审补充原厂切 tab **同时发模式帧**，故"浏览式 tab+flag 跟 tab"是杂交语义，
+    产品决策=改跟已选效果（待拍板，见决策点）；R19-10 lint 口径——"0 warning"为我方表述过强
+    （实际=无新增，存量在 baseline），采纳纠正。
+  - **复审重建 release MD5 不同**（4f0bbc44 vs 5b0109dc）＝构建非确定性，非缺陷；
+    发布纪律改为记"构建时间戳+哈希"对（并入 R19-10 修复）。
+  - 三处旧事实已当场修正（R19-10.4 首付）：本文件 §1.2 写参数指向协议文档、§3.3 AAR→源码收编、
+    协议 §5.5 时间同步时机。
+  - **处置**：tag 冻结确认；W6 验收包挂起；修复按审查 §6 A-F 包排产（两个决策点待用户拍板：
+    ①限幅语义=跟已选效果(推荐)/复刻原厂切tab即切效果 ②静音与停止承诺=撤回文案(推荐)/
+    实现音量→亮度（需帧#11 RGB 直发+真灯验证））。
 
 ### 核心文件拓扑
 
