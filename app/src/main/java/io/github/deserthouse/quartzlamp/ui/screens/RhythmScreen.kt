@@ -8,6 +8,7 @@ import android.media.audiofx.Visualizer
 import android.net.Uri
 import android.provider.MediaStore
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -19,6 +20,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -31,6 +33,8 @@ import androidx.compose.material.icons.filled.MusicNote
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SurroundSound
+import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -56,15 +60,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import io.github.deserthouse.quartzlamp.audio.MicEngine
 import io.github.deserthouse.quartzlamp.audio.WaveformLevel
 import io.github.deserthouse.quartzlamp.ui.AppViewModel
 import io.github.deserthouse.quartzlamp.ui.RhythmSource
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -73,6 +81,24 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 private data class Song(val title: String, val artist: String, val uri: Uri, val id: Long)
+
+/** 音乐源状态（屏幕级持有——曲库条目展开进主滚动流后，面板组合不再整体存在，R19-08） */
+private class MusicState {
+    val player = MediaPlayer()
+    val visualizer = arrayOf<Visualizer?>(null)
+    var songs by mutableStateOf(listOf<Song>())
+    var current by mutableStateOf<Song?>(null)
+    var playing by mutableStateOf(false)
+    var preparing by mutableStateOf(false)
+    var reactive by mutableStateOf(true)
+    var reactiveUnavailable by mutableStateOf(false)
+    var musicError by mutableStateOf(false)
+    var loading by mutableStateOf(false)
+    var loadError by mutableStateOf(false)
+    var hasPermission by mutableStateOf(false)
+    var positionMs by mutableStateOf(0)
+    var durationMs by mutableStateOf(0)
+}
 
 /** ON_STOP 即执行（R19-05：DisposableEffect 只覆盖组合离开，不覆盖 Activity 后台） */
 @Composable
@@ -85,45 +111,178 @@ private fun OnLifecycleStop(action: () -> Unit) {
     }
 }
 
+/** 音乐读取权限按 API 分支：READ_MEDIA_AUDIO（33+）/ READ_EXTERNAL_STORAGE（31/32） */
 private fun audioPermissionName(): String =
     if (android.os.Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_AUDIO
     else Manifest.permission.READ_EXTERNAL_STORAGE
 
 /**
- * 律动屏（光谱控制台，麦克风+音乐合并——2026-10-15 拍板）：
- * 三源切换（切源即停其它引擎）；手机麦为显式"开始聆听"（不悄悄录音，审查 §6.3）；
- * 灯端拾音设置（类型/灵敏度）与声源无关，固定在底部卡片。
+ * 律动屏（光谱控制台；R19-08：整页 LazyColumn——源面板与曲库条目都在主滚动流内，
+ * 360dp×2.0 大字体下无不可达控件；无固定高度列表）。
  */
 @Composable
 fun RhythmScreen(vm: AppViewModel) {
     val source by vm.rhythmSource.collectAsState()
+    val context = LocalContext.current
+    val music = remember { MusicState() }
 
-    Column(
+    // ━━━ 音乐：屏幕级状态与副作用 ━━━
+    fun startReactive(sessionId: Int) {
+        music.visualizer[0]?.release()
+        music.visualizer[0] = null
+        if (!music.reactive) return
+        val v = Visualizer(sessionId).apply {
+            captureSize = Visualizer.getCaptureSizeRange()[0]
+            setDataCaptureListener(
+                object : Visualizer.OnDataCaptureListener {
+                    override fun onWaveFormDataCapture(viz: Visualizer, waveform: ByteArray, samplingRate: Int) {
+                        val level = WaveformLevel.level(waveform) // 8 位无符号归一（F04）
+                        vm.sendReactive(((1f - level) * 265f).toInt(), 1f)
+                    }
+                    override fun onFftDataCapture(viz: Visualizer, fft: ByteArray, samplingRate: Int) {}
+                },
+                Visualizer.getMaxCaptureRate() / 2, true, false
+            )
+            enabled = true
+        }
+        music.visualizer[0] = v
+    }
+
+    fun play(song: Song) {
+        music.musicError = false
+        music.reactiveUnavailable = false
+        try {
+            music.player.reset()
+            music.player.setAudioStreamType(AudioManager.STREAM_MUSIC)
+            music.player.setDataSource(context, song.uri)
+            music.preparing = true
+            music.player.prepareAsync() // 异步（R19-05）：完成回调在 DisposableEffect 注册
+        } catch (_: Exception) {
+            music.preparing = false
+            music.musicError = true
+        }
+    }
+
+    DisposableEffect(Unit) {
+        music.player.setOnCompletionListener {
+            music.playing = false
+            music.preparing = false
+            music.positionMs = music.durationMs
+            music.visualizer[0]?.enabled = false
+        }
+        music.player.setOnPreparedListener { p ->
+            music.preparing = false
+            p.start()
+            music.playing = true
+            music.durationMs = try { p.duration } catch (_: Exception) { 0 }
+            try {
+                startReactive(p.audioSessionId)
+            } catch (_: Exception) {
+                music.reactiveUnavailable = true // 部分 HAL 不支持效果捕获：播放不受影响
+            }
+        }
+        music.player.setOnErrorListener { _, _, _ ->
+            music.preparing = false; music.playing = false; music.musicError = true; true
+        }
+        onDispose {
+            music.visualizer[0]?.release()
+            music.visualizer[0] = null
+            music.player.release()
+        }
+    }
+
+    // Home/锁屏即暂停（R19-05：无后台服务，后台续播不在范围）
+    OnLifecycleStop {
+        if (music.playing || music.preparing) {
+            try {
+                music.player.pause()
+            } catch (_: IllegalStateException) {
+            }
+            music.playing = false
+            music.visualizer[0]?.enabled = false
+        }
+    }
+
+    // 曲库加载（R19-02）：已授权进入/重进/授权回调三路统一（IO 线程，三态）
+    val permLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { map ->
+        music.hasPermission = map.values.all { it }
+    }
+    LaunchedEffect(Unit) {
+        music.hasPermission = ContextCompat.checkSelfPermission(context, audioPermissionName()) ==
+                PackageManager.PERMISSION_GRANTED &&
+                ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO) ==
+                PackageManager.PERMISSION_GRANTED
+    }
+    LaunchedEffect(music.hasPermission) {
+        if (music.hasPermission) {
+            music.loading = true; music.loadError = false
+            try {
+                music.songs = withContext(Dispatchers.IO) { querySongs(context) }
+            } catch (_: Exception) {
+                music.loadError = true
+            }
+            music.loading = false
+        }
+    }
+    LaunchedEffect(music.playing, music.current?.id) {
+        while (music.playing) {
+            music.positionMs = try { music.player.currentPosition } catch (_: IllegalStateException) { 0 }
+            delay(500)
+        }
+    }
+
+    LazyColumn(
         modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("律动", style = MaterialTheme.typography.headlineLarge)
+        item { Text("律动", style = MaterialTheme.typography.headlineLarge) }
 
-        SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
-            RhythmSource.entries.forEachIndexed { i, s ->
-                SegmentedButton(
-                    selected = source == s,
-                    onClick = { vm.selectRhythmSource(s) },
-                    shape = SegmentedButtonDefaults.itemShape(i, RhythmSource.entries.size),
-                    icon = {}
-                ) { Text(s.label) }
+        item {
+            SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
+                RhythmSource.entries.forEachIndexed { i, s ->
+                    SegmentedButton(
+                        selected = source == s,
+                        onClick = { vm.selectRhythmSource(s) },
+                        shape = SegmentedButtonDefaults.itemShape(i, RhythmSource.entries.size),
+                        icon = {}
+                    ) { Text(s.label) }
+                }
             }
         }
 
         when (source) {
-            RhythmSource.PHONE_MIC -> PhoneMicPanel(vm)
-            RhythmSource.LAMP_MIC -> LampMicPanel()
-            RhythmSource.MUSIC -> MusicPanel(vm)
+            RhythmSource.PHONE_MIC -> item { PhoneMicPanel(vm) }
+            RhythmSource.LAMP_MIC -> item { LampMicPanel() }
+            RhythmSource.MUSIC -> {
+                item { MusicHeaderCard(music, permLauncher, ::play, ::startReactive) }
+                when {
+                    !music.hasPermission -> item {
+                        Text(
+                            "授予权限后浏览本地曲目",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    music.loading -> item { CircularProgressIndicator(Modifier.size(28.dp)) }
+                    music.loadError -> item {
+                        Text("曲目加载失败，重进本页重试", color = MaterialTheme.colorScheme.error)
+                    }
+                    music.songs.isEmpty() -> item {
+                        Text(
+                            "设备中没有可播放的音频",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    else -> items(music.songs, key = { it.id }) { song ->
+                        SongRow(song, music, ::play)
+                    }
+                }
+            }
         }
 
-        // ━━━ 灯端拾音设置（类型/灵敏度——对灯端生效，与声源无关）━━━
-        LampTuningCard(vm)
-        Spacer(Modifier.height(8.dp))
+        item { LampTuningCard(vm) }
+        item { Spacer(Modifier.height(8.dp)) }
     }
 }
 
@@ -155,7 +314,7 @@ private fun PhoneMicPanel(vm: AppViewModel) {
         }
     }
 
-    // Home/锁屏即停采音（R19-05）：组合未离开但 Activity 已后台
+    // Home/锁屏即停采音（R19-05）
     OnLifecycleStop { if (listening) listening = false }
 
     DisposableEffect(listening, hasPermission) {
@@ -168,7 +327,7 @@ private fun PhoneMicPanel(vm: AppViewModel) {
                     level = l
                     vm.sendReactive(((1f - l) * 265f).toInt(), 1f)
                 },
-                { micError = true; listening = false } // 初始化失败（权限被撤/设备占用）
+                { micError = true; listening = false }
             )
         } else {
             engine.stop()
@@ -190,7 +349,6 @@ private fun PhoneMicPanel(vm: AppViewModel) {
                 )
             }
 
-            // 大主操作：开始聆听 / 停止（≥48dp 触区）
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                 Surface(
                     shape = CircleShape,
@@ -201,6 +359,7 @@ private fun PhoneMicPanel(vm: AppViewModel) {
                     modifier = Modifier
                         .size(96.dp)
                         .clip(CircleShape)
+                        .semantics { contentDescription = if (listening) "停止聆听" else "开始聆听" }
                         .clickable {
                             if (!hasPermission) permLauncher.launch(Manifest.permission.RECORD_AUDIO)
                             else listening = !listening
@@ -208,14 +367,13 @@ private fun PhoneMicPanel(vm: AppViewModel) {
                 ) {
                     Box(contentAlignment = Alignment.Center) {
                         Icon(
-                            Icons.Filled.Mic, contentDescription = if (listening) "停止聆听" else "开始聆听",
+                            Icons.Filled.Mic, contentDescription = null,
                             modifier = Modifier.size(40.dp)
                         )
                     }
                 }
             }
 
-            // 真实电平条（采音时活动；停止/无权限时静止为空——审查 §6.4）
             Box(
                 Modifier
                     .fillMaxWidth()
@@ -265,237 +423,105 @@ private fun LampMicPanel() {
     }
 }
 
-// ━━━ 本地音乐：曲库 + 播放 + 律动开关 ━━━
+// ━━━ 音乐：头部卡（播放控制/律动开关/进度/状态）━━━
+
+private fun fmt(ms: Int): String = "%d:%02d".format(ms / 60000, (ms / 1000) % 60)
 
 @Composable
-private fun MusicPanel(vm: AppViewModel) {
-    val context = LocalContext.current
-    var songs by remember { mutableStateOf(listOf<Song>()) }
-    var current by remember { mutableStateOf<Song?>(null) }
-    var playing by remember { mutableStateOf(false) }
-    var reactive by remember { mutableStateOf(true) }
-    var hasPermission by remember {
-        mutableStateOf(
-            ContextCompat.checkSelfPermission(context, audioPermissionName()) ==
-                    PackageManager.PERMISSION_GRANTED
-        )
-    }
-    var loading by remember { mutableStateOf(false) }
-    var loadError by remember { mutableStateOf(false) }
-    val permLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { map ->
-        hasPermission = map.values.all { it }
-    }
-    // R19-02：已授权进入/重进/授权回调三路统一由此 effect 加载（IO 线程，异常转错误态）
-    LaunchedEffect(hasPermission) {
-        if (hasPermission) {
-            loading = true; loadError = false
-            try {
-                songs = withContext(Dispatchers.IO) { querySongs(context) }
-            } catch (_: Exception) {
-                loadError = true
-            }
-            loading = false
-        }
-    }
-
-    val player = remember { MediaPlayer() }
-    val visualizer = remember { arrayOf<Visualizer?>(null) }
-    var positionMs by remember { mutableStateOf(0) }
-    var durationMs by remember { mutableStateOf(0) }
-
-    var preparing by remember { mutableStateOf(false) }
-    var musicError by remember { mutableStateOf(false) }
-    var reactiveUnavailable by remember { mutableStateOf(false) }
-
-    // Home/锁屏即暂停（R19-05：无后台服务，后台续播不在范围）
-    OnLifecycleStop {
-        if (playing || preparing) {
-            try {
-                player.pause()
-            } catch (_: IllegalStateException) {
-            }
-            playing = false
-            visualizer[0]?.enabled = false
-        }
-    }
-
-    // 进度轮询：仅播放中驱动（500ms）
-    LaunchedEffect(playing, current?.id) {
-        while (playing) {
-            positionMs = try { player.currentPosition } catch (_: IllegalStateException) { 0 }
-            delay(500)
-        }
-    }
-
-    fun startReactive(sessionId: Int) {
-        visualizer[0]?.release()
-        if (!reactive) return
-        val v = Visualizer(sessionId).apply {
-            captureSize = Visualizer.getCaptureSizeRange()[0]
-            // rate 单位 mHz：max/2 = 10Hz 回调
-            setDataCaptureListener(
-                object : Visualizer.OnDataCaptureListener {
-                    override fun onWaveFormDataCapture(viz: Visualizer, waveform: ByteArray, samplingRate: Int) {
-                        val level = WaveformLevel.level(waveform) // 8 位无符号归一（F04）
-                        vm.sendReactive(((1f - level) * 265f).toInt(), 1f)
-                    }
-                    override fun onFftDataCapture(viz: Visualizer, fft: ByteArray, samplingRate: Int) {}
-                },
-                Visualizer.getMaxCaptureRate() / 2, true, false
-            )
-            enabled = true
-        }
-        visualizer[0] = v
-    }
-
-    // 播完回落 + 异步准备回调 + 播放错误（R19-05：prepare 不再主线程阻塞；错误有可见状态）
-    DisposableEffect(Unit) {
-        player.setOnCompletionListener {
-            playing = false
-            preparing = false
-            positionMs = durationMs
-            visualizer[0]?.enabled = false
-        }
-        player.setOnPreparedListener { p ->
-            preparing = false
-            p.start()
-            playing = true
-            durationMs = try { p.duration } catch (_: Exception) { 0 }
-            try {
-                startReactive(p.audioSessionId)
-            } catch (_: Exception) {
-                reactiveUnavailable = true // 部分 HAL 不支持效果捕获：播放不受影响，律动不可用
-            }
-        }
-        player.setOnErrorListener { _, _, _ ->
-            preparing = false; playing = false; musicError = true; true
-        }
-        onDispose {
-            visualizer[0]?.release()
-            visualizer[0] = null
-            player.release()
-        }
-    }
-
-
-    fun play(song: Song) {
-        musicError = false
-        reactiveUnavailable = false
-        try {
-            player.reset()
-            player.setAudioStreamType(AudioManager.STREAM_MUSIC)
-            player.setDataSource(context, song.uri)
-            preparing = true
-            player.prepareAsync() // 异步：不阻塞主线程（R19-05）
-        } catch (_: Exception) {
-            preparing = false
-            musicError = true
-        }
-    }
-
-    fun fmt(ms: Int): String = "%d:%02d".format(ms / 60000, (ms / 1000) % 60)
-
+private fun MusicHeaderCard(
+    music: MusicState,
+    permLauncher: ActivityResultLauncher<Array<String>>,
+    play: (Song) -> Unit,
+    startReactive: (Int) -> Unit
+) {
     Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceVariant) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Icon(Icons.Filled.MusicNote, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                 Column(Modifier.weight(1f).padding(start = 12.dp)) {
-                    Text(current?.title ?: "未播放", style = MaterialTheme.typography.titleMedium, maxLines = 1)
+                    Text(music.current?.title ?: "未播放", style = MaterialTheme.typography.titleMedium, maxLines = 1)
                     Text(
                         when {
-                            musicError -> "播放失败，请重试"
-                            preparing -> "准备中…"
-                            reactiveUnavailable -> "播放正常，但该设备不支持波形捕获（律动不可用）"
-                            else -> current?.artist ?: if (hasPermission) "从下方曲库选择" else "需要音频读取权限"
+                            music.musicError -> "播放失败，请重试"
+                            music.preparing -> "准备中…"
+                            music.reactiveUnavailable -> "播放正常，但该设备不支持波形捕获（律动不可用）"
+                            else -> music.current?.artist ?: "从下方曲库选择"
                         },
                         style = MaterialTheme.typography.bodySmall, maxLines = 1,
-                        color = if (musicError) MaterialTheme.colorScheme.error
+                        color = if (music.musicError) MaterialTheme.colorScheme.error
                         else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                IconButton(onClick = {
-                    if (playing) {
-                        player.pause(); playing = false; visualizer[0]?.enabled = false
-                    } else {
-                        current?.let { s ->
-                            player.start(); startReactive(player.audioSessionId); playing = true
+                if (music.preparing) {
+                    CircularProgressIndicator(Modifier.size(24.dp))
+                } else {
+                    IconButton(onClick = {
+                        if (music.playing) {
+                            music.player.pause(); music.playing = false; music.visualizer[0]?.enabled = false
+                        } else {
+                            music.current?.let { s ->
+                                music.player.start(); startReactive(music.player.audioSessionId); music.playing = true
+                            }
                         }
+                    }) {
+                        Icon(if (music.playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, contentDescription = "播放/暂停")
                     }
-                }) {
-                    Icon(if (playing) Icons.Filled.Pause else Icons.Filled.PlayArrow, contentDescription = "播放/暂停")
                 }
             }
 
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("律动同步", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
                 Switch(
-                    checked = reactive,
+                    checked = music.reactive,
                     onCheckedChange = {
-                        reactive = it
-                        if (it && playing) startReactive(player.audioSessionId)
-                        else visualizer[0]?.enabled = it && playing
+                        music.reactive = it
+                        if (it && music.playing) startReactive(music.player.audioSessionId)
+                        else music.visualizer[0]?.enabled = it && music.playing
                     }
                 )
             }
 
-            // 进度（只读展示；拖动定位需 MediaPlayer.seekTo，非审查要求项）
-            if (durationMs > 0) {
+            if (music.durationMs > 0) {
                 LinearProgressIndicator(
-                    progress = { if (durationMs == 0) 0f else positionMs.toFloat() / durationMs },
+                    progress = { music.positionMs.toFloat() / music.durationMs },
                     modifier = Modifier.fillMaxWidth()
                 )
                 Row {
-                    Text(fmt(positionMs), style = MaterialTheme.typography.labelMedium)
+                    Text(fmt(music.positionMs), style = MaterialTheme.typography.labelMedium)
                     Spacer(Modifier.weight(1f))
-                    Text(fmt(durationMs), style = MaterialTheme.typography.labelMedium)
+                    Text(fmt(music.durationMs), style = MaterialTheme.typography.labelMedium)
                 }
             }
 
-            if (!hasPermission) {
-                Text("需要音频读取权限浏览本地曲目", style = MaterialTheme.typography.bodyMedium)
-                androidx.compose.material3.Button(onClick = {
+            if (!music.hasPermission) {
+                Button(onClick = {
                     permLauncher.launch(arrayOf(audioPermissionName(), Manifest.permission.RECORD_AUDIO))
                 }) { Text("授予权限") }
-            } else if (loading) {
-                androidx.compose.material3.CircularProgressIndicator(Modifier.size(28.dp))
-            } else if (loadError) {
-                Text("曲目加载失败，切回本页重试", style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error)
-            } else if (songs.isEmpty()) {
-                Text(
-                    "设备中没有可播放的音频",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxWidth().height(280.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    items(songs, key = { it.id }) { song ->
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(MaterialTheme.shapes.small)
-                                .clickable { current = song; play(song) }
-                                .padding(vertical = 8.dp, horizontal = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                song.title,
-                                modifier = Modifier.weight(1f),
-                                maxLines = 1,
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = if (current?.id == song.id) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.onSurface
-                            )
-                            FilledIconButton(onClick = { current = song; play(song) }) {
-                                Icon(Icons.Filled.PlayArrow, contentDescription = "播放")
-                            }
-                        }
-                    }
-                }
             }
+        }
+    }
+}
+
+@Composable
+private fun SongRow(song: Song, music: MusicState, play: (Song) -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(MaterialTheme.shapes.small)
+            .clickable { music.current = song; play(song) }
+            .padding(vertical = 8.dp, horizontal = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            song.title,
+            modifier = Modifier.weight(1f),
+            maxLines = 1,
+            style = MaterialTheme.typography.bodyLarge,
+            color = if (music.current?.id == song.id) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.onSurface
+        )
+        FilledIconButton(onClick = { music.current = song; play(song) }) {
+            Icon(Icons.Filled.PlayArrow, contentDescription = "播放 ${song.title}")
         }
     }
 }
@@ -546,23 +572,29 @@ private fun LampTuningCard(vm: AppViewModel) {
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 micTypeNames.forEachIndexed { i, name ->
                     val value = micTypeValues[i]
+                    val selected = mic.type == value
                     Surface(
                         shape = CircleShape,
-                        color = if (mic.type == value) MaterialTheme.colorScheme.primary
+                        color = if (selected) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.surface,
-                        contentColor = if (mic.type == value) MaterialTheme.colorScheme.onPrimary
+                        contentColor = if (selected) MaterialTheme.colorScheme.onPrimary
                         else MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier
+                            .weight(1f)
+                            .heightIn(min = 48.dp) // 触区 ≥48dp（R19-08）
                             .clip(CircleShape)
+                            .semantics {
+                                role = Role.Button
+                                contentDescription = "拾音类型 $name"
+                            }
                             .clickable { vm.setMicType(value) }
                     ) {
-                        Text(
-                            name, style = MaterialTheme.typography.labelLarge,
-                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 8.dp)
-                        )
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(name, style = MaterialTheme.typography.labelLarge)
+                        }
                     }
                 }
             }

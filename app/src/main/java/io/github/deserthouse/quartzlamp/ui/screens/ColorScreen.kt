@@ -5,6 +5,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -43,8 +44,11 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import io.github.deserthouse.quartzlamp.ui.AppViewModel
 import kotlin.math.atan2
@@ -54,15 +58,18 @@ import kotlin.math.sin
 import kotlin.math.sqrt
 
 /** 预设色（8 色语义保留；2×4 自适应网格——436dp 溢出裁切不可复现，审查 §6.1） */
+internal data class Preset(val hue: Int, val sat: Float, val name: String)
+
+/** 预设色（R19-08：带色名语义，无障碍读"预设 红"而非无名色块） */
 private val presets = listOf(
-    0 to 1f,     // 红
-    35 to 1f,    // 橙
-    60 to 1f,    // 黄
-    120 to 1f,   // 绿
-    180 to 1f,   // 青
-    210 to 1f,   // 蓝
-    265 to 1f,   // 紫
-    300 to 1f    // 品红
+    Preset(0, 1f, "红"),
+    Preset(35, 1f, "橙"),
+    Preset(60, 1f, "黄"),
+    Preset(120, 1f, "绿"),
+    Preset(180, 1f, "青"),
+    Preset(210, 1f, "蓝"),
+    Preset(265, 1f, "紫"),
+    Preset(300, 1f, "品红")
 )
 
 private fun colorOf(h: Int, s: Float): Color =
@@ -166,12 +173,12 @@ fun ColorScreen(vm: AppViewModel) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             presets.chunked(4).forEach { row ->
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    row.forEach { (h, s) ->
+                    row.forEach { p ->
                         PresetDot(
-                            hue = h, sat = s,
-                            selected = color.hue == h,
+                            preset = p,
+                            selected = color.hue == p.hue,
                             modifier = Modifier.weight(1f)
-                        ) { vm.setColor(h, s) }
+                        ) { vm.setColor(p.hue, p.sat) }
                     }
                 }
             }
@@ -181,24 +188,24 @@ fun ColorScreen(vm: AppViewModel) {
 }
 
 @Composable
-private fun PresetDot(hue: Int, sat: Float, selected: Boolean, modifier: Modifier, onTap: () -> Unit) {
-    // 选中=描边环+对勾（颜色不独自承担选中含义，审查 §6.2）
+private fun PresetDot(preset: Preset, selected: Boolean, modifier: Modifier, onTap: () -> Unit) {
+    // 选中=描边环+对勾（颜色不独自承担选中含义）；selectable 提供无障碍选中语义（R19-08）
     Box(
         modifier
             .height(48.dp)
             .clip(CircleShape)
-            .background(colorOf(hue, sat))
+            .background(colorOf(preset.hue, preset.sat))
             .border(
                 width = if (selected) 3.dp else 0.dp,
                 color = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
                 shape = CircleShape
             )
-            .clickable(onClick = onTap),
+            .selectable(selected = selected, role = Role.Button, onClick = onTap),
         contentAlignment = Alignment.Center
     ) {
         if (selected) {
             Icon(
-                Icons.Filled.Check, contentDescription = "已选中",
+                Icons.Filled.Check, contentDescription = null,
                 tint = Color.White, modifier = Modifier.size(20.dp)
             )
         }
@@ -266,17 +273,32 @@ private fun HueWheel(
         Canvas(
             modifier = Modifier
                 .fillMaxSize()
-                .semantics { contentDescription = "色相环：拖动或点按选取色相" }
-                .pointerInput(onPick, onPicked) {
-                    detectTapGestures { off -> pickFrom(off, size)?.let(onPicked) }
+                .semantics {
+                    contentDescription = "色相环：拖动或点按选取色相"
+                    stateDescription = "当前色相 ${hue} 度"
                 }
                 .pointerInput(onPick, onPicked) {
+                    val strokePx = 34.dp.toPx()
+                    val half = strokePx / 2
+                    val ringR = min(size.width, size.height) / 2f - half
+                    val slack = 10.dp.toPx()
+                    detectTapGestures { off -> pickFrom(off, ringR.toDouble(), half.toDouble(), slack.toDouble())?.let(onPicked) }
+                }
+                .pointerInput(onPick, onPicked) {
+                    val strokePx = 34.dp.toPx()
+                    val half = strokePx / 2
+                    val ringR = min(size.width, size.height) / 2f - half
+                    val slack = 10.dp.toPx()
                     detectDragGestures(
-                        onDragEnd = { lastDrag?.let { pickFrom(it, size)?.let(onPicked) } }
+                        onDragEnd = {
+                            lastDrag?.let {
+                                pickFrom(it, ringR.toDouble(), half.toDouble(), slack.toDouble())?.let(onPicked)
+                            }
+                        }
                     ) { change, _ ->
                         change.consume()
                         lastDrag = change.position
-                        pickFrom(change.position, size)?.let(onPick)
+                        pickFrom(change.position, ringR.toDouble(), half.toDouble(), slack.toDouble())?.let(onPick)
                     }
                 }
         ) {
@@ -291,9 +313,9 @@ private fun HueWheel(
                 size = Size(size.width - stroke, size.height - stroke)
             )
             val r = (size.minDimension - stroke) / 2
-            val rad = Math.toRadians(hue.toDouble())
+            val rad = Math.toRadians(hue.toDouble()) // 0°=右（与 sweepGradient/拾取同原点，R19-06）
             val cx = size.width / 2 + r * sin(rad).toFloat()
-            val cy = size.height / 2 - r * cos(rad).toFloat()
+            val cy = size.height / 2 + r * cos(rad).toFloat()
             drawCircle(Color.White, radius = 17.dp.toPx(), center = Offset(cx, cy))
             drawCircle(colorOf(hue, 1f), radius = 12.dp.toPx(), center = Offset(cx, cy))
         }
@@ -308,10 +330,23 @@ private fun HueWheel(
     }
 }
 
-/** 位置 → 色相（0° 顶部顺时针）；环外无效返回 null */
-private fun pickFrom(pos: Offset, size: androidx.compose.ui.unit.IntSize): Int? {
-    val dx = pos.x - size.width / 2
-    val dy = pos.y - size.height / 2
-    if (sqrt(dx * dx + dy * dy) > min(size.width, size.height) / 2.0) return null
-    return (((Math.toDegrees(atan2(dy.toDouble(), dx.toDouble())) + 90 + 360) % 360).toInt())
+/**
+ * 相对圆心的角度 → 色相（R19-06 修复）：**0°=正右（3 点钟）顺时针**——与 Brush.sweepGradient
+ * 的色序原点一致（此前绘制用右原点、拾取/指示器用顶原点，恒差 90°：点红色区域发 H=90）。
+ */
+internal fun hueAt(dx: Double, dy: Double): Int {
+    val deg = Math.toDegrees(atan2(dy, dx))
+    return ((deg % 360.0 + 360.0) % 360.0).toInt()
+}
+
+/** 环带命中（R19-06）：仅色环带可拾取——中心色盘与环外区域无效（此前全盘可命中） */
+internal fun inRingBand(dist: Double, ringR: Double, halfStroke: Double, slack: Double = 0.0): Boolean =
+    kotlin.math.abs(dist - ringR) <= halfStroke + slack
+
+private fun pickFrom(pos: Offset, ringR: Double, halfStroke: Double, slack: Double): Int? {
+    val dx = (pos.x - ringR - halfStroke).toDouble() // canvas 尺寸 = 2*(ringR+halfStroke)
+    val dy = (pos.y - ringR - halfStroke).toDouble()
+    val dist = sqrt(dx * dx + dy * dy)
+    if (!inRingBand(dist, ringR, halfStroke, slack)) return null
+    return hueAt(dx, dy)
 }

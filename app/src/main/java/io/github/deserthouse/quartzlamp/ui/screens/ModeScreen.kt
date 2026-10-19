@@ -102,6 +102,7 @@ private fun HintBar(name: String, modifier: Modifier) {
 @Composable
 fun ModeScreen(vm: AppViewModel) {
     val mode by vm.mode.collectAsState()
+    val conn by vm.state.collectAsState()
     var tab by remember { mutableIntStateOf(mode.tab) }
     // 厂商同语义：isInQuandengMode 由 mode$4.onTabSelected 汇合点(01d9)在每次切 tab 时按"当前tab==全灯tab"
     // 重估（全 dex 仅此一处写点），故按浏览 tab 判定即厂商行为；速度限幅=上限70
@@ -127,13 +128,28 @@ fun ModeScreen(vm: AppViewModel) {
                         style = MaterialTheme.typography.labelMedium,
                         modifier = Modifier.weight(1f)
                     )
-                    Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primary) {
-                        Text(
-                            "运行中",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onPrimary,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
-                        )
+                    // 有依据的状态（R19-08）：未连接不得伪装"运行中"
+                    if (conn == io.github.deserthouse.quartzlamp.ble.ConnState.CONNECTED) {
+                        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primary) {
+                            Text(
+                                "运行中",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onPrimary,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
+                            )
+                        }
+                    } else {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceVariant
+                        ) {
+                            Text(
+                                "未连接",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
+                            )
+                        }
                     }
                 }
                 Text(
