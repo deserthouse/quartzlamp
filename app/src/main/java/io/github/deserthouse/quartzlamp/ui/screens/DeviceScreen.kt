@@ -59,6 +59,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import io.github.deserthouse.quartzlamp.ble.ConnState
+import io.github.deserthouse.quartzlamp.ble.ScannedLamp
 import io.github.deserthouse.quartzlamp.ble.SessionState
 import io.github.deserthouse.quartzlamp.ui.AppViewModel
 
@@ -76,6 +77,7 @@ fun DeviceScreen(vm: AppViewModel) {
     val state by vm.state.collectAsState()
     val scanned by vm.scanned.collectAsState()
     val sessions by vm.sessions.collectAsState()
+    val scanning by vm.scanning.collectAsState()
 
     val needed = remember {
         listOf(
@@ -116,7 +118,7 @@ fun DeviceScreen(vm: AppViewModel) {
         PowerBrightnessCard(vm)
         ConnectionCard(
             vm = vm,
-            state = state,
+            scanning = scanning,
             granted = granted,
             btOn = btOn,
             sessions = sessions,
@@ -149,6 +151,9 @@ private fun PowerBrightnessCard(vm: AppViewModel) {
                     modifier = Modifier
                         .size(64.dp)
                         .clip(CircleShape)
+                        .semantics {
+                            contentDescription = if (powerOn) "关闭电源（当前已开）" else "打开电源（当前已关）"
+                        }
                         .clickable { vm.setPower(!powerOn) }
                 ) {
                     Box(contentAlignment = Alignment.Center) {
@@ -194,7 +199,7 @@ private fun PowerBrightnessCard(vm: AppViewModel) {
 @Composable
 private fun ConnectionCard(
     vm: AppViewModel,
-    state: ConnState,
+    scanning: Boolean,
     granted: Boolean,
     btOn: Boolean,
     sessions: Map<String, SessionState>,
@@ -206,12 +211,12 @@ private fun ConnectionCard(
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("连接管理", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
-                if (state == ConnState.SCANNING) {
+                if (scanning) {
                     CircularProgressIndicator(Modifier.padding(end = 12.dp).size(20.dp))
                 }
                 if (!granted) {
                     Button(onClick = onPermRequest) { Text("授权蓝牙") }
-                } else if (state == ConnState.SCANNING) {
+                } else if (scanning) {
                     TextButton(onClick = vm::stopScan) { Text("停止") }
                 } else {
                     Button(onClick = vm::startScan, enabled = btOn) { Text("扫描") }
@@ -245,60 +250,72 @@ private fun ConnectionCard(
                 }
             }
 
+            // R20-07：discovered ∪ sessions 合并——已连接/连接中设备不因重新扫描消失
+            val mergedDevices = (scanned.map { it.mac }.toSet() + sessions.keys)
+                .map { mac ->
+                    val lamp = scanned.firstOrNull { it.mac == mac }
+                        ?: ScannedLamp(mac.take(5) + "…", mac, Int.MIN_VALUE)
+                    lamp to (sessions[mac] ?: SessionState.DISCONNECTED)
+                }
+                .sortedWith(compareBy({ it.second != SessionState.CONNECTED }, { -it.first.rssi }))
             LazyColumn(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 320.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                items(scanned, key = { it.mac }) { lamp ->
-                    val session = sessions[lamp.mac] ?: SessionState.DISCONNECTED
-                    // M3E 行容器：圆角 Surface + 连接态着色（非裸 ListItem 矩形）
+                items(mergedDevices, key = { it.first.mac }) { (lamp, session) ->
+                    // M3E 行容器：圆角 Surface + 连接态着色；自绘行（ListItem 自绘底色会覆盖着色）
+                    val connected = session == SessionState.CONNECTED
                     Surface(
                         shape = MaterialTheme.shapes.small,
-                        color = when (session) {
-                            SessionState.CONNECTED -> MaterialTheme.colorScheme.secondaryContainer
-                            else -> MaterialTheme.colorScheme.surface
-                        },
+                        color = if (connected) MaterialTheme.colorScheme.secondaryContainer
+                        else MaterialTheme.colorScheme.surface,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 2.dp)
                     ) {
-                        ListItem(
-                            headlineContent = {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(Modifier.weight(1f)) {
                                 Text(
                                     lamp.name,
-                                    color = if (session == SessionState.CONNECTED)
-                                        MaterialTheme.colorScheme.onSecondaryContainer
+                                    color = if (connected) MaterialTheme.colorScheme.onSecondaryContainer
                                     else MaterialTheme.colorScheme.onSurface
                                 )
-                            },
-                            supportingContent = {
                                 Text(
                                     "${lamp.mac} · ${lamp.rssi} dBm",
-                                    color = if (session == SessionState.CONNECTED)
-                                        MaterialTheme.colorScheme.onSecondaryContainer
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = if (connected) MaterialTheme.colorScheme.onSecondaryContainer
                                     else MaterialTheme.colorScheme.onSurfaceVariant
                                 )
-                            },
-                            trailingContent = {
-                                when (session) {
-                                    SessionState.CONNECTED ->
-                                        TextButton(onClick = { vm.disconnect(lamp.mac) }) { Text("断开") }
-                                    SessionState.CONNECTING ->
-                                        Text("连接中…", style = MaterialTheme.typography.labelMedium)
-                                    SessionState.RECONNECTING ->
-                                        Text("重连中…", style = MaterialTheme.typography.labelMedium)
-                                    SessionState.DISCONNECTED ->
-                                        TextButton(onClick = { vm.connect(lamp) }) { Text("连接") }
-                                }
                             }
-                        )
+                            when (session) {
+                                SessionState.CONNECTED ->
+                                    TextButton(onClick = { vm.disconnect(lamp.mac) }) { Text("断开") }
+                                SessionState.CONNECTING ->
+                                    Text(
+                                        "连接中…",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        modifier = Modifier.padding(start = 8.dp)
+                                    )
+                                SessionState.RECONNECTING ->
+                                    Text(
+                                        "重连中…",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        modifier = Modifier.padding(start = 8.dp)
+                                    )
+                                SessionState.DISCONNECTED ->
+                                    TextButton(onClick = { vm.connect(lamp) }) { Text("连接") }
+                            }
+                        }
                     }
                 }
             }
 
-            if (granted && scanned.isEmpty() && state == ConnState.DISCONNECTED) {
+            if (granted && scanned.isEmpty() && !scanning) {
                 Text(
                     "扫描会自动过滤拾音灯设备；未出现请确认灯已通电",
                     style = MaterialTheme.typography.bodyMedium
@@ -338,7 +355,9 @@ private fun LampTuningCard(vm: AppViewModel) {
                             .weight(1f)
                             .heightIn(min = 48.dp)
                             .clip(CircleShape)
-                            .semantics { contentDescription = "拾音类型 $name" }
+                            .semantics {
+                                contentDescription = "拾音类型 $name${if (selected) "（已选中）" else ""}"
+                            }
                             .clickable { vm.setMicType(value) }
                     ) {
                         Box(contentAlignment = Alignment.Center) {

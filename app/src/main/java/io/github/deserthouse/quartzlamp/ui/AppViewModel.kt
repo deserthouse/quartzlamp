@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
 import io.github.deserthouse.quartzlamp.QuartzLampApp
 import io.github.deserthouse.quartzlamp.ble.ConnState
+import io.github.deserthouse.quartzlamp.ble.SendResult
 import io.github.deserthouse.quartzlamp.ble.LampConnection
 import io.github.deserthouse.quartzlamp.ble.ScannedLamp
 import io.github.deserthouse.quartzlamp.ble.SessionState
@@ -28,6 +29,7 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
 
     val state: StateFlow<ConnState> = lamp.state
     val scanned: StateFlow<List<ScannedLamp>> = lamp.scanned
+    val scanning: StateFlow<Boolean> = lamp.scanning
     val sessions: StateFlow<Map<String, SessionState>> = lamp.sessions
     val frameLog get() = lamp.frameLog
     val isDemo get() = lamp.isDemo
@@ -50,6 +52,25 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
     /** 灯模式（V/U3）：setColor(send)→Static；selectEffect→Effect。预览拖动不改模式。 */
     private val _lampMode = MutableStateFlow<LampMode>(LampMode.Effect(1)) // 厂商 initView 默认索引 1
     val lampMode: StateFlow<LampMode> = _lampMode
+
+    /** 当前灯效帧是否真实投递成功（R20-03：运行中徽章的证据位） */
+    private val _lastEffectSendOk = MutableStateFlow(false)
+    val lastEffectSendOk: StateFlow<Boolean> = _lastEffectSendOk
+
+    init {
+        // 连接建立瞬间自动激活灯端拾音（R20-04：确保灯载源 00+配置，防旧版遗留手机源）
+        viewModelScope.launch {
+            var prev = false
+            lamp.state.collect { s ->
+                val connected = s == ConnState.CONNECTED
+                if (connected && !prev) applyLampPickupFrames()
+                prev = connected
+            }
+        }
+    }
+
+    /** 发送并按结果更新状态（R20-03：意图≠结果） */
+    private fun fire(block: suspend () -> Unit) = viewModelScope.launch { block() }
 
     // ━━━ 模式 ━━━
     data class ModeState(
@@ -86,7 +107,10 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
         val error: Boolean = false,       // 最近一次读取失败
         val dirty: Boolean = false,       // 草稿：编辑过未应用（R19-09）
         val sent: Boolean = false,        // 已发送未读回确认（无逐灯 ACK，不假成功）
-        val readFrom: String? = null      // 读取目标灯（多灯时=第一盏）
+        val readFrom: String? = null,     // 读取目标灯（多灯时=第一盏）
+        val revision: Long = 0,           // R20-03：草稿修订号，读回结果仅接受同修订
+        val pendingConnection: Boolean = false, // R20-03：无连接暂存
+        val sendFailed: Boolean = false   // R20-03：最近一次应用失败
     )
 
     data class TimerUiState(
@@ -99,14 +123,17 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
 
     fun setPower(on: Boolean) {
         _powerOn.value = on
-        lamp.send(LampFrames.power(on))
+        fire { lamp.send(LampFrames.power(on)) }
     }
 
     fun setColor(hue: Int, sat: Float, send: Boolean = true) {
         _color.value = _color.value.copy(hue = hue, sat = sat)
-        if (send) {
-            lamp.send(LampFrames.colorStatic(hue, sat))
-            _lampMode.value = LampMode.Static(hue, sat)
+        if (send) fire {
+            when (lamp.send(LampFrames.colorStatic(hue, sat))) {
+                SendResult.SentToAll, SendResult.SentToSome ->
+                    _lampMode.value = LampMode.Static(hue, sat) // 投递成功才认单色模式（R20-03）
+                else -> {} // NoTarget/Failed：保留原模式判断，不虚报
+            }
         }
     }
 
@@ -115,12 +142,19 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
         _color.value = _color.value.copy(bright = v)
     }
 
-    fun sendBrightness() = lamp.send(LampFrames.brightness(_color.value.bright))
+    fun sendBrightness() = fire { lamp.send(LampFrames.brightness(_color.value.bright)) }
 
     fun selectEffect(tab: Int, position: Int, deviceIndex: Int) {
         _mode.value = _mode.value.copy(tab = tab, selected = deviceIndex)
-        lamp.send(LampFrames.modeSelect(deviceIndex))
-        _lampMode.value = LampMode.Effect(deviceIndex)
+        fire {
+            when (lamp.send(LampFrames.modeSelect(deviceIndex))) {
+                SendResult.SentToAll, SendResult.SentToSome -> {
+                    _lampMode.value = LampMode.Effect(deviceIndex)
+                    _lastEffectSendOk.value = true
+                }
+                else -> _lastEffectSendOk.value = false
+            }
+        }
     }
 
     fun updateSpeed(v: Int) {
@@ -134,26 +168,36 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
      */
     fun sendSpeed() {
         val selectedCategory = (_mode.value.selected - 1) / 17
-        lamp.send(LampFrames.speed(_mode.value.speed, selectedCategory == 8))
+        fire { lamp.send(LampFrames.speed(_mode.value.speed, selectedCategory == 8)) }
     }
 
     fun updateSensitivity(v: Int) {
         _mode.value = _mode.value.copy(sensitivity = v)
     }
 
-    fun sendSensitivity() = lamp.send(LampFrames.sensitivity(_mode.value.sensitivity))
+    fun sendSensitivity() =
+        fire { lamp.send(LampFrames.sensitivity(_mode.value.sensitivity)) }
 
-    fun setMicType(type: Int) {
-        _mic.value = _mic.value.copy(type = type)
-        lamp.send(LampFrames.micType(type))
+    fun setMicType(value: Int) {
+        _mic.update { it.copy(type = value) }
+        applyLampPickupFrames()
     }
 
     fun updateMicSensitivity(v: Int) {
-        _mic.value = _mic.value.copy(sensitivity = v)
+        _mic.update { it.copy(sensitivity = v) }
     }
 
-    fun sendMicSensitivity() =
+    fun sendMicSensitivity() = applyLampPickupFrames()
+
+    /**
+     * 灯端拾音激活三帧（R20-04）：灯载源 00 + 类型 + 灵敏度——
+     * 防灯被旧版/原厂置为手机源后无法由本控制器恢复。声源开关不进 UI（D1）。
+     */
+    fun applyLampPickupFrames() = fire {
+        lamp.send(LampFrames.micSource(false))
+        lamp.send(LampFrames.micType(_mic.value.type))
         lamp.send(LampFrames.micSensitivity(_mic.value.sensitivity))
+    }
 
     // ━━━ 定时：槽位编辑/保存/读取（全部 update{} 原子改） ━━━
 
@@ -162,16 +206,22 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
         _timer.update {
             it.withSlot(openSlot) { s ->
                 if (s.hour == hour && s.minute == minute && s.weeks == weeks) s
-                else s.copy(hour = hour, minute = minute, weeks = weeks, dirty = true)
+                else s.copy(hour = hour, minute = minute, weeks = weeks, dirty = true, revision = s.revision + 1)
             }
         }
 
-    /** 应用到灯：保存即下发 timerSet（协议无启用位，F05）；置 sent（不假成功，待读回确认） */
+    /** 应用到灯（R20-03 结果驱动）：无连接=待连接保留草稿；投递成功=sent；失败=sendFailed */
     fun saveTimerSlot(openSlot: Boolean) {
         val s = _timer.value.slot(openSlot)
-        lamp.send(LampFrames.timerSet(s.hour, s.minute, openSlot, weekBits(s.weeks)))
-        _timer.update {
-            it.withSlot(openSlot) { it.copy(dirty = false, sent = true) }
+        fire {
+            when (lamp.send(LampFrames.timerSet(s.hour, s.minute, openSlot, weekBits(s.weeks)))) {
+                SendResult.SentToAll, SendResult.SentToSome ->
+                    _timer.update { it.withSlot(openSlot) { it.copy(dirty = false, sent = true, sendFailed = false, pendingConnection = false) } }
+                SendResult.NoTarget ->
+                    _timer.update { it.withSlot(openSlot) { it.copy(sent = false, pendingConnection = true) } }
+                else ->
+                    _timer.update { it.withSlot(openSlot) { it.copy(sent = false, sendFailed = true) } }
+            }
         }
     }
 
@@ -183,6 +233,7 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
     fun queryTimerSlot(openSlot: Boolean) {
         if (_timer.value.slot(openSlot).busy) return
         val target = connectedLampName()
+        val revAtRequest = _timer.value.slot(openSlot).revision
         viewModelScope.launch {
             _timer.update { it.withSlot(openSlot) { s -> s.copy(busy = true, error = false) } }
             val info = runCatching { lamp.queryTimer(openSlot) }.getOrNull()
@@ -190,6 +241,8 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
             _timer.update { cur ->
                 cur.withSlot(openSlot) { s ->
                     when {
+                        // R20-03：读取期间有新编辑（revision 变化）→ 丢弃旧观测，保护新草稿
+                        s.revision != revAtRequest -> s.copy(busy = false)
                         info == null -> s.copy(busy = false, error = true)
                         !info.isSet ->
                             if (openSlot) TimerSlot()
@@ -210,12 +263,14 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
     /** 进定时页即对时（厂商 timer.initView 同构，P0 审计补强）；帧历时间为 Calendar 现取 */
     fun syncClock() {
         val c = java.util.Calendar.getInstance()
-        lamp.send(
-            LampFrames.timeSync(
-                c.get(java.util.Calendar.HOUR_OF_DAY), c.get(java.util.Calendar.MINUTE),
-                c.get(java.util.Calendar.SECOND), c.get(java.util.Calendar.DAY_OF_WEEK) - 1
+        fire {
+            lamp.send(
+                LampFrames.timeSync(
+                    c.get(java.util.Calendar.HOUR_OF_DAY), c.get(java.util.Calendar.MINUTE),
+                    c.get(java.util.Calendar.SECOND), c.get(java.util.Calendar.DAY_OF_WEEK) - 1
+                )
             )
-        )
+        }
     }
 
     /** 定时读取目标：首个已连接灯（名称缺失退 MAC） */

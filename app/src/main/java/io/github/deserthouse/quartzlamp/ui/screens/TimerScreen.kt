@@ -43,7 +43,9 @@ private fun summarize(slot: AppViewModel.TimerSlot, open: Boolean): String {
     val days = slot.weeks.withIndex().filter { it.value }.map { weekFull[it.index] }
     val action = if (open) "开灯" else "关灯"
     val time = "%02d:%02d".format(slot.hour, slot.minute)
-    return if (days.isEmpty()) "每周 $time $action（仅一次）" else "${days.joinToString("·")} $time $action"
+    // 零周位行为未证实（真灯探针 A4），文案用中性"重复：无"而非宣称仅一次
+    return if (days.isEmpty()) "重复：无选中日期 · $time $action"
+    else "${days.joinToString("·")} $time $action"
 }
 
 /**

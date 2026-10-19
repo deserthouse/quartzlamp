@@ -34,7 +34,8 @@ class FakeLampConnection : LampConnection {
     override val state: StateFlow<ConnState> = _state
 
     /** 扫描独立事实（R19-03，与真实实现同语义） */
-    private val scanning = MutableStateFlow(false)
+    private val _scanning = MutableStateFlow(false)
+    override val scanning: StateFlow<Boolean> = _scanning
 
     private val _scanned = MutableStateFlow<List<ScannedLamp>>(emptyList())
     override val scanned: StateFlow<List<ScannedLamp>> = _scanned
@@ -75,15 +76,15 @@ class FakeLampConnection : LampConnection {
     private val lampTimers = mutableMapOf<Boolean, Triple<Int, Int, Int>>()
 
     override fun startScan() {
-        if (scanning.value) return
-        scanning.value = true
+        if (_scanning.value) return
+        _scanning.value = true
         _scanned.value = emptyList()
         _state.value = ConnState.SCANNING
         scanJobs += scope.launch {
             delay(scanDelayMs)
             _scanned.value = fakeLamps
             delay((scanTimeoutMs - scanDelayMs).coerceAtLeast(0))
-            scanning.value = false
+            _scanning.value = false
             _state.value = aggregated()
         }
     }
@@ -91,7 +92,7 @@ class FakeLampConnection : LampConnection {
     override fun stopScan() {
         scanJobs.forEach { it.cancel() }
         scanJobs.clear()
-        scanning.value = false
+        _scanning.value = false
         _state.value = aggregated()
     }
 
@@ -144,11 +145,13 @@ class FakeLampConnection : LampConnection {
         }
     }
 
-    override fun send(frame: ByteArray) {
+    override suspend fun send(frame: ByteArray): SendResult {
         val hex = LampFrames.hex(frame)
         Log.d("BLE-WRITE", hex)
         LampConnection.sharedFrameLog.tryEmit(hex)
         recordFrame(hex)
+        val n = _sessions.value.count { it.value == SessionState.CONNECTED }
+        val result = if (n == 0) SendResult.NoTarget else SendResult.SentToAll
         // 假灯端存储：timerSet 帧被记录，queryTimer 才能读回（F11 写读闭环）
         if (frame.size == 9 && frame[0] == 0x7E.toByte() && frame[2] == 0x82.toByte()) {
             val hour = frame[3].toInt()
@@ -159,6 +162,7 @@ class FakeLampConnection : LampConnection {
                 lampTimers.remove(frame[6].toInt() == 0)
             }
         }
+        return result
     }
 
     override suspend fun queryTimer(open: Boolean): ByteArray? {
@@ -194,7 +198,7 @@ class FakeLampConnection : LampConnection {
 
     private fun aggregated(): ConnState = when {
         _sessions.value.containsValue(SessionState.CONNECTED) -> ConnState.CONNECTED
-        scanning.value -> ConnState.SCANNING
+        _scanning.value -> ConnState.SCANNING
         _sessions.value.containsValue(SessionState.CONNECTING) ||
             _sessions.value.containsValue(SessionState.RECONNECTING) -> ConnState.CONNECTING
         else -> ConnState.DISCONNECTED

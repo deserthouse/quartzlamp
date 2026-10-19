@@ -3,6 +3,7 @@ package io.github.deserthouse.quartzlamp.ui
 import io.github.deserthouse.quartzlamp.ble.ConnState
 import io.github.deserthouse.quartzlamp.ble.LampConnection
 import io.github.deserthouse.quartzlamp.ble.ScannedLamp
+import io.github.deserthouse.quartzlamp.ble.SendResult
 import io.github.deserthouse.quartzlamp.ble.SessionState
 import io.github.deserthouse.quartzlamp.protocol.LampFrames
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -15,6 +16,7 @@ class TestLampConnection : LampConnection {
 
     override val state = MutableStateFlow(ConnState.DISCONNECTED)
     override val scanned = MutableStateFlow<List<ScannedLamp>>(emptyList())
+    override val scanning = MutableStateFlow(false)
     override val frameLog: SharedFlow<String> = LampConnection.sharedFrameLog
     override val frameHistory = MutableStateFlow<List<String>>(emptyList())
     override val sessions = MutableStateFlow<Map<String, SessionState>>(emptyMap())
@@ -33,8 +35,11 @@ class TestLampConnection : LampConnection {
         sessions.value = sessions.value + (mac to SessionState.DISCONNECTED)
     }
 
-    override fun send(frame: ByteArray) {
+    override suspend fun send(frame: ByteArray): SendResult {
         sentFrames += LampFrames.hex(frame)
+        // 桩语义：有连接即全部成功，无连接=NoTarget（供结果驱动断言）
+        val n = sessions.value.count { it.value == SessionState.CONNECTED }
+        return if (n > 0) SendResult.SentToAll else SendResult.NoTarget
     }
 
     override suspend fun queryTimer(open: Boolean): ByteArray? {

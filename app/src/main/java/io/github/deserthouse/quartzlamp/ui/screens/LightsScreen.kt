@@ -40,6 +40,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -165,6 +166,7 @@ private fun StaticPane(vm: AppViewModel) {
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             HueWheel(
                 hue = color.hue,
+                currentSat = color.sat,
                 onPick = { h -> vm.setColor(h, color.sat, send = false) },
                 onPicked = { h -> vm.setColor(h, color.sat, send = true) },
                 modifier = Modifier.size(260.dp)
@@ -222,6 +224,7 @@ private fun PresetDot(preset: Preset, selected: Boolean, modifier: Modifier, onT
                 color = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
                 shape = CircleShape
             )
+            .semantics { contentDescription = "预设颜色 ${preset.name}${if (selected) "，已选中" else ""}" }
             .selectable(selected = selected, role = androidx.compose.ui.semantics.Role.Button, onClick = onTap),
         contentAlignment = Alignment.Center
     ) {
@@ -238,6 +241,7 @@ private fun PresetDot(preset: Preset, selected: Boolean, modifier: Modifier, onT
 @Composable
 private fun HueWheel(
     hue: Int,
+    currentSat: Float,
     onPick: (Int) -> Unit,
     onPicked: (Int) -> Unit,
     modifier: Modifier = Modifier
@@ -246,6 +250,8 @@ private fun HueWheel(
         mutableListOf<Color>().apply { for (h in 0..360 step 30) add(colorOf(h % 360, 1f)) }
     }
     var lastDrag by remember { mutableStateOf<Offset?>(null) }
+    val currentOnPick by rememberUpdatedState(onPick)
+    val currentOnPicked by rememberUpdatedState(onPicked)
 
     Box(modifier) {
         Canvas(
@@ -255,7 +261,7 @@ private fun HueWheel(
                     contentDescription = "色相环：拖动或点按选取色相"
                     stateDescription = "当前色相 $hue 度"
                 }
-                .pointerInput(onPick, onPicked) {
+                .pointerInput(Unit) {
                     val strokePx = 34.dp.toPx()
                     val half = strokePx / 2
                     val ringR = min(size.width, size.height) / 2f - half
@@ -266,7 +272,7 @@ private fun HueWheel(
                         pickFrom(off, cx, cy, ringR.toDouble(), half.toDouble(), slack.toDouble())?.let(onPicked)
                     }
                 }
-                .pointerInput(onPick, onPicked) {
+                .pointerInput(Unit) {
                     val strokePx = 34.dp.toPx()
                     val half = strokePx / 2
                     val ringR = min(size.width, size.height) / 2f - half
@@ -298,8 +304,8 @@ private fun HueWheel(
             )
             val r = (size.minDimension - stroke) / 2
             val rad = Math.toRadians(hue.toDouble()) // 0°=右（与渐变/拾取同原点）
-            val cx = size.width / 2 + r * sin(rad).toFloat()
-            val cy = size.height / 2 + r * cos(rad).toFloat()
+            val cx = size.width / 2 + r * cos(rad).toFloat()
+            val cy = size.height / 2 + r * sin(rad).toFloat()
             drawCircle(Color.White, radius = 17.dp.toPx(), center = Offset(cx, cy))
             drawCircle(colorOf(hue, 1f), radius = 12.dp.toPx(), center = Offset(cx, cy))
         }
@@ -308,7 +314,7 @@ private fun HueWheel(
                 .align(Alignment.Center)
                 .size(140.dp)
                 .clip(CircleShape)
-                .background(colorOf(hue, 1f))
+                .background(colorOf(hue, currentSat))
                 .border(4.dp, MaterialTheme.colorScheme.surface, CircleShape)
         )
     }

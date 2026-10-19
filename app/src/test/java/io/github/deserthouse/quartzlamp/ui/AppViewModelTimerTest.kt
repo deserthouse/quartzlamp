@@ -21,7 +21,7 @@ import org.junit.Test
 class AppViewModelTimerTest {
 
     private val lamp = TestLampConnection()
-    private val vm = AppViewModel(lamp)
+    private val vm: AppViewModel by lazy { AppViewModel(lamp) }
 
     @Before fun setUp() {
         Dispatchers.setMain(UnconfinedTestDispatcher())

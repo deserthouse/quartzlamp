@@ -44,7 +44,7 @@ class GattOpQueue(
     private sealed interface Op
     private class NotifyOp(val result: CompletableDeferred<Boolean>) : Op
     private class WriteOp(val frame: ByteArray, val result: CompletableDeferred<Boolean>?) : Op
-    private class ReactiveOp(val holder: ReactiveHolder) : Op
+    private class ReactiveOp(val holder: ReactiveHolder, val result: CompletableDeferred<Boolean>? = null) : Op
     private class QueryOp(val frame: ByteArray, val result: CompletableDeferred<ByteArray?>) : Op
 
     private class ReactiveHolder(var frame: ByteArray)
@@ -55,87 +55,127 @@ class GattOpQueue(
     @Volatile
     private var pendingReactive: ReactiveHolder? = null
 
+    /** R20-06：在途/排队的结果等待者注册表——close 时统一失败，杜绝悬留 */
+    private val pendingResults = java.util.Collections.synchronizedCollection(ArrayList<CompletableDeferred<*>>())
+
+    @Volatile
+    private var closed = false
+
+    /** 会话关闭（R20-06）：拒收新操作、失败全部等待者；已发往平台的在途操作由 Job 取消兜底 */
+    fun close() {
+        closed = true
+        channel.close()
+        val snapshot = synchronized(pendingResults) { pendingResults.toList() }
+        snapshot.forEach {
+            it.completeExceptionally(RuntimeException("queue closed"))
+        }
+        synchronized(pendingResults) { pendingResults.clear() }
+    }
+
     /** 启动消费循环；返回 Job 供断开时取消（在途挂起操作将随取消抛出） */
     fun start(scope: CoroutineScope): Job = scope.launch {
-        for (op in channel) {
-            try {
-                when (op) {
-                    is NotifyOp -> op.result.complete(execStep("notify") { c ->
-                        transport.enableNotify { ok, err ->
-                            if (ok) c.resume(Unit) else c.resumeWithException(RuntimeException("notify fail: $err"))
+        try {
+            for (op in channel) {
+                try {
+                    when (op) {
+                        is NotifyOp -> {
+                            pendingResults.remove(op.result)
+                            op.result.complete(execStep("notify") { c ->
+                                transport.enableNotify { ok, err ->
+                                    if (ok) c.resume(Unit) else c.resumeWithException(RuntimeException("notify fail: $err"))
+                                }
+                            })
                         }
-                    })
-                    is WriteOp -> {
-                        // 注意：不能写 op.result?.complete(execStep(...))——安全调用在 result==null
-                        // 时连参数都不求值，post 投递的帧会被整体跳过
-                        val ok = execStep("write") { c ->
-                            transport.write(op.frame) { ok, err ->
-                                if (ok) c.resume(Unit) else c.resumeWithException(RuntimeException("write fail: $err"))
+                        is WriteOp -> {
+                            // 注意：不能写 op.result?.complete(execStep(...))——安全调用在 result==null
+                            // 时连参数都不求值，post 投递的帧会被整体跳过
+                            pendingResults.remove(op.result)
+                            val ok = execStep("write") { c ->
+                                transport.write(op.frame) { ok, err ->
+                                    if (ok) c.resume(Unit) else c.resumeWithException(RuntimeException("write fail: $err"))
+                                }
+                            }
+                            op.result?.complete(ok)
+                        }
+                        is ReactiveOp -> {
+                            if (pendingReactive === op.holder) pendingReactive = null
+                            val frame = op.holder.frame
+                            execStep("reactive") { c ->
+                                transport.write(frame) { ok, err ->
+                                    if (ok) c.resume(Unit) else c.resumeWithException(RuntimeException("reactive fail: $err"))
+                                }
                             }
                         }
-                        op.result?.complete(ok)
+                        is QueryOp -> {
+                            var readData: ByteArray? = null
+                            val wok = execStep("query-write") { c ->
+                                transport.write(op.frame) { ok, err ->
+                                    if (ok) c.resume(Unit) else c.resumeWithException(RuntimeException("query write fail: $err"))
+                                }
+                            }
+                            val rok = wok && execStep("query-read") { c ->
+                                transport.read { data, err ->
+                                    if (data != null) {
+                                        readData = data
+                                        c.resume(Unit)
+                                    } else c.resumeWithException(RuntimeException("query read fail: $err"))
+                                }
+                            }
+                            op.result.complete(if (rok) readData else null)
+                            continue
+                        }
                     }
-                    is ReactiveOp -> {
-                        if (pendingReactive === op.holder) pendingReactive = null
-                        val frame = op.holder.frame
-                        execStep("reactive") { c ->
-                            transport.write(frame) { ok, err ->
-                                if (ok) c.resume(Unit) else c.resumeWithException(RuntimeException("reactive fail: $err"))
-                            }
-                        }
-                    }
-                    is QueryOp -> {
-                        var readData: ByteArray? = null
-                        val wok = execStep("query-write") { c ->
-                            transport.write(op.frame) { ok, err ->
-                                if (ok) c.resume(Unit) else c.resumeWithException(RuntimeException("query write fail: $err"))
-                            }
-                        }
-                        val rok = wok && execStep("query-read") { c ->
-                            transport.read { data, err ->
-                                if (data != null) {
-                                    readData = data
-                                    c.resume(Unit)
-                                } else c.resumeWithException(RuntimeException("query read fail: $err"))
-                            }
-                        }
-                        op.result.complete(if (rok) readData else null)
-                        continue
-                    }
+                } catch (e: TimeoutCancellationException) {
+                    fail("${phaseOf(op)}: timeout（>${opTimeoutMs}ms，跳过该操作）")
+                } catch (e: CancellationException) {
+                    // 队列被取消（设备断开）：在途查询的等待方一并取消，退出循环
+                    if (op is QueryOp) op.result.cancel(e)
+                    throw e
+                } catch (e: Exception) {
+                    fail("${phaseOf(op)}: ${e.message}")
                 }
-            } catch (e: TimeoutCancellationException) {
-                fail("${phaseOf(op)}: timeout（>${opTimeoutMs}ms，跳过该操作）")
-            } catch (e: CancellationException) {
-                // 队列被取消（设备断开）：在途查询的等待方一并取消，退出循环
-                if (op is QueryOp) op.result.cancel(e)
-                throw e
-            } catch (e: Exception) {
-                fail("${phaseOf(op)}: ${e.message}")
             }
+        } catch (e: Exception) {
+            // channel 已 close：等待者已在 close() 中统一失败
+        }
+    }
+
+    private fun <T> dispatch(op: Op, result: CompletableDeferred<T>): Boolean {
+        if (closed) {
+            result.cancel(CancellationException("queue closed"))
+            return false
+        }
+        pendingResults.add(result)
+        return channel.trySend(op).isSuccess || run {
+            pendingResults.remove(result)
+            result.cancel(CancellationException("queue closed"))
+            false
         }
     }
 
     /** 挂起等待 notify 建立；true=成功（超时/失败为 false，不抛） */
     suspend fun notify(): Boolean {
         val d = CompletableDeferred<Boolean>()
-        channel.trySend(NotifyOp(d))
+        if (!dispatch(NotifyOp(d), d)) return false
         return d.await()
     }
 
     /** 挂起写（等本帧回调）；true=成功 */
     suspend fun write(frame: ByteArray): Boolean {
         val d = CompletableDeferred<Boolean>()
-        channel.trySend(WriteOp(frame, d))
+        if (!dispatch(WriteOp(frame, d), d)) return false
         return d.await()
     }
 
     /** 非阻塞投递（广播控制帧；结果只入 [lastError] 日志） */
     fun post(frame: ByteArray) {
+        if (closed) return
         channel.trySend(WriteOp(frame, null))
     }
 
     /** 律动帧：未开始执行的待发律动只保留最新（conflate） */
     fun postReactive(frame: ByteArray) {
+        if (closed) return
         val pending = pendingReactive
         if (pending != null) {
             pending.frame = frame
@@ -146,10 +186,20 @@ class GattOpQueue(
         }
     }
 
+    /** 挂起版律动投递（R20-03：需真实结果时用；结果语义=已发往该设备队列并完成） */
+    suspend fun postReactiveAwait(frame: ByteArray): Boolean {
+        if (closed) return false
+        val d = CompletableDeferred<Boolean>()
+        val holder = ReactiveHolder(frame)
+        pendingReactive = holder
+        if (!dispatch(ReactiveOp(holder), d)) return false
+        return d.await()
+    }
+
     /** 定时查询事务（写→读，原子不被穿插）；失败/超时返回 null */
     suspend fun query(frame: ByteArray): ByteArray? {
         val d = CompletableDeferred<ByteArray?>()
-        channel.trySend(QueryOp(frame, d))
+        if (!dispatch(QueryOp(frame, d), d)) return null
         return d.await()
     }
 

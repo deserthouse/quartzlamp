@@ -1,6 +1,12 @@
 package io.github.deserthouse.quartzlamp.ui
 
 import org.junit.Assert.assertTrue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
+import org.junit.After
+import org.junit.Before
 import org.junit.Test
 
 /**
@@ -8,6 +14,8 @@ import org.junit.Test
  * 选中普通效果时浏览全灯类不限幅；选中全灯类效果时无论浏览哪类都限幅。
  */
 class AppViewModelSpeedTest {
+    @Before fun setUpMain() { Dispatchers.setMain(UnconfinedTestDispatcher()) }
+    @After fun tearDownMain() { Dispatchers.resetMain() }
 
     private fun vm(): Pair<AppViewModel, TestLampConnection> {
         val lamp = TestLampConnection()

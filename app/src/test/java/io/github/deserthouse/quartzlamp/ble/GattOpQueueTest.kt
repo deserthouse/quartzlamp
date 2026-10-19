@@ -4,6 +4,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -151,6 +152,36 @@ class GattOpQueueTest {
         assertTrue(result.isCompleted)
         assertEquals(null, result.getCompleted())
         assertEquals(1, t.ops.size) // 未发起读
+        Unit
+    }
+
+    @Test
+    fun `close后等待者立即失败-R20-06`() = runTest {
+        val t = FakeTransport()
+        val q = GattOpQueue("t", t, 60_000)
+        q.start(backgroundScope + UnconfinedTestDispatcher(testScheduler))
+        q.post(f(0xBC, 1))
+        assertEquals(listOf("W:BC01"), t.ops) // 在途等 ACK
+        val w = CompletableDeferred<Result<Boolean>>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            w.complete(runCatching { q.write(f(0xBC, 2)) })
+        }
+        advanceUntilIdle()
+        q.close() // 排队等待者统一失败（取消异常）
+        assertTrue(w.isCompleted)
+        assertTrue(w.getCompleted().isFailure)
+    }
+
+    @Test
+    fun `close后post与reactive不再执行-R20-06`() = runTest {
+        val t = FakeTransport()
+        val q = GattOpQueue("t", t, 60_000)
+        q.start(backgroundScope + UnconfinedTestDispatcher(testScheduler))
+        q.close()
+        val before = t.ops.size
+        q.post(f(0xBC, 1))
+        q.postReactive(f(0xBC, 9))
+        assertEquals(before, t.ops.size)
         Unit
     }
 }

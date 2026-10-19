@@ -93,5 +93,7 @@ mingDu（明度）=600 · speed=50 · sensitivity=50
     （mode$4.onTabSelected 汇合点重估 flag，全 dex 仅此一处写点）——审查报告
     "应按已选效果"的子论点与一手证据不符，**驳回**，我方 ModeScreen 按 tab 判定保持不变；
   - 帧 #8 方向定案（01=手机麦），帧 #9 映射定案（1/2/3/4=经典/柔和/动感/迪斯科）；
+  - 2026-10-20 追注：我方 UI 限幅已改**跟已选效果**（浏览式 tab 不发模式帧，厂商"flag 跟
+    浏览 tab"前提不适用——依据见 review_2026-10-19.md §2 与用户拍板）；
   - §1 写参数语义纠正（split/sendNextWhenLastSuccess/intervalBetweenTwoPackage，调用值不变）；
   - §3 读回补 timer$8 解析细节，§5 新增响应包络验证项。

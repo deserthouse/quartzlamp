@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- R20-10：深色主题下状态栏图标用浅色，随 Compose 深色主题同步 -->
+<resources>
+    <style name="Theme.QuartzLamp" parent="android:Theme.Material.NoActionBar">
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">false</item>
+    </style>
+</resources>

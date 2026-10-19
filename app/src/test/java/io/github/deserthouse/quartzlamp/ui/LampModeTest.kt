@@ -2,13 +2,23 @@ package io.github.deserthouse.quartzlamp.ui
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
+import kotlinx.coroutines.test.resetMain
+import kotlinx.coroutines.test.setMain
+import org.junit.After
+import org.junit.Before
+import io.github.deserthouse.quartzlamp.ble.ScannedLamp
 import org.junit.Test
 
 /** 灯模式互斥语义（V/U3）：应用颜色→单色；选效果→灯效；预览拖动不改模式。 */
 class LampModeTest {
+    @Before fun setUpMain() { Dispatchers.setMain(UnconfinedTestDispatcher()) }
+    @After fun tearDownMain() { Dispatchers.resetMain() }
 
     private fun vm(): Pair<AppViewModel, TestLampConnection> {
         val lamp = TestLampConnection()
+        lamp.connect(ScannedLamp("t", "AA:BB:CC:DD:EE:FF", -50)) // 有连接：投递 SentToAll
         return AppViewModel(lamp) to lamp
     }
 

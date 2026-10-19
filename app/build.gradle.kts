@@ -15,8 +15,8 @@ android {
         applicationId = "io.github.deserthouse.quartzlamp"
         minSdk = 31
         targetSdk = 37
-        versionCode = 3
-        versionName = "0.3.0"
+        versionCode = 4
+        versionName = "0.4.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
@@ -48,12 +48,6 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            // R19-10.3：正式发布缺凭据必须显式失败（此前静默回退 debug 签名）；
-            // 开发验证用 assembleDebug
-            if (!hasReleaseCredentials) throw org.gradle.api.GradleException(
-                "Release 构建需要签名凭据 QUARTZLAMP_STORE_FILE/STORE_PASS/KEY_ALIAS/KEY_PASS" +
-                    "（~/.gradle/gradle.properties）；开发验证请用 assembleDebug"
-            )
             signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -89,6 +83,19 @@ android {
     }
     testOptions {
         unitTests.isReturnDefaultValues = true
+    }
+
+    // R20-05：缺发布凭据只在**真正打包 release** 时失败——debug/单测/配置不再被阻断
+    gradle.taskGraph.whenReady {
+        val releasesRequested = allTasks.any {
+            it.path == ":app:assembleRelease" || it.path == ":app:bundleRelease"
+        }
+        if (releasesRequested && !hasReleaseCredentials) {
+            throw org.gradle.api.GradleException(
+                "Release 打包需要签名凭据 QUARTZLAMP_STORE_FILE/STORE_PASS/KEY_ALIAS/KEY_PASS" +
+                    "（~/.gradle/gradle.properties）；开发验证请用 assembleDebug"
+            )
+        }
     }
     lint {
         // R4 门禁（F13）：存量问题锁进 baseline（21 项 MissingPermission 全在收编的

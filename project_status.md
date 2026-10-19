@@ -354,6 +354,32 @@ M0 时对比厂商 dex 内 FastBle 类集与 2.3.4 确认版本一致（厂商 c
   - 路线：采纳审查推荐 **B 有边界重构**的精神——但按"方案确认后编码"纪律，完整 UI 子树
     重排（审查 §5.3）列为**用户决策点**；夜间先执行无架构争议的整改包（见工作安排），UI 重编排
     与 B 路线正式采纳与否等用户批复。
+- ✅ **R20 整改执行收官（2026-10-20 04:30-05:40，按 docs/workorder_r20_2026-10-20.md）**：
+  - R1 会话身份：attempt 世代双递增（connectGen+attemptGen），全部 gatt 回调 stale 守卫
+    （fail/disconnect 也在内）；重连循环重写为**终态串行推进**（每尝试等 terminal 兜底 100s），
+    尝试间不重叠、手动断开全失效；
+  - R2 投递结果：门面 send 改挂起返回 **SendResult**（SentToAll/SentToSome/NoTarget/Failed，
+    逐队列 await 真实结果）；saveTimerSlot 结果驱动（NoTarget=待连接保留草稿/失败=sendFailed，
+    不虚报 sent）；TimerSlot+revision 修订号，读取观测仅接受同修订（读中编辑保护）；
+    "运行中"徽章=已连接 && Effect 模式 && lastEffectSendOk（R20-03）；
+  - R3 拾音激活：applyLampPickupFrames 三帧（BC0F0100+BC11+BC12）——类型/灵敏度操作与
+    连接建立均触发（R20-04，真灯复核保留）；
+  - R4 色环：指示点坐标与 hueAt 同原点（cos/sin 修正）；pointerInput(Unit)+
+    rememberUpdatedState 手势生命周期（拖动重启风险消除）；onDragCancel 清 lastDrag；
+    中心盘真实 HSV 预览（colorOf(hue,sat)）（R20-02）；
+  - R5 队列 close 契约：pendingResults 注册表+close 统一失败（悬留等待者消除）；
+    post/postReactive/notify/write/query 全走 dispatch 尊重 closed（R20-06）；
+  - R6 扫描贯通：门面暴露 scanning StateFlow；设备页合并 discovered∪sessions
+    （已连接行重扫不消失）；自绘行替代 ListItem（着色不再被覆盖）；转圈/停止按 scanning
+    （与已连接并存）；CONNECTING/RECONNECTING 行有取消（R20-07）；
+  - R7：凭据门禁懒化（taskGraph.whenReady，仅 release 打包时失败——debug/单测不再被阻断，
+    修复 R19-10.3 过矫）；R20-08 语义（预设名/类型钮描述/电源状态描述）；
+    R20-10 values-night 状态栏（windowLightStatusBar=false）；
+    R20-11 定时文案中性化+acceptance/协议文档对齐（BC10/BC12 纠正、限幅现状注记）。
+  - **0.4.0(4)：构建 2026-10-20 05:34:31 +0800 / MD5 be4e32cca617bf29df034a701c9f77ab /
+    SHA-256 前缀 536a5421**；V2 验签过、FakeLamp=0、lint 0 新增；单测 67/67。
+  - 审查方探针反例（陈旧回调/重连重叠/零连接 sent）已转正式回归测试。
+
 ### 核心文件拓扑
 
 ```
