@@ -62,11 +62,28 @@ import io.github.deserthouse.quartzlamp.audio.MicEngine
 import io.github.deserthouse.quartzlamp.audio.WaveformLevel
 import io.github.deserthouse.quartzlamp.ui.AppViewModel
 import io.github.deserthouse.quartzlamp.ui.RhythmSource
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 private data class Song(val title: String, val artist: String, val uri: Uri, val id: Long)
+
+/** ON_STOP 即执行（R19-05：DisposableEffect 只覆盖组合离开，不覆盖 Activity 后台） */
+@Composable
+private fun OnLifecycleStop(action: () -> Unit) {
+    val owner = LocalLifecycleOwner.current
+    DisposableEffect(owner) {
+        val obs = LifecycleEventObserver { _, e -> if (e == Lifecycle.Event.ON_STOP) action() }
+        owner.lifecycle.addObserver(obs)
+        onDispose { owner.lifecycle.removeObserver(obs) }
+    }
+}
 
 private fun audioPermissionName(): String =
     if (android.os.Build.VERSION.SDK_INT >= 33) Manifest.permission.READ_MEDIA_AUDIO
@@ -126,19 +143,33 @@ private fun PhoneMicPanel(vm: AppViewModel) {
         hasPermission = it
     }
     val engine = remember { MicEngine() }
+    val engineScope = remember { CoroutineScope(SupervisorJob() + Dispatchers.Main) }
     var listening by remember { mutableStateOf(false) }
     var level by remember { mutableFloatStateOf(0f) }
+    var micError by remember { mutableStateOf(false) }
 
-    DisposableEffect(Unit) { onDispose { engine.stop() } }
+    DisposableEffect(Unit) {
+        onDispose {
+            engine.stop()
+            engineScope.cancel()
+        }
+    }
 
-    // 聆听中启动采音；面板离开组合时 onDispose 停引擎（切源/离屏都覆盖）
+    // Home/锁屏即停采音（R19-05）：组合未离开但 Activity 已后台
+    OnLifecycleStop { if (listening) listening = false }
+
     DisposableEffect(listening, hasPermission) {
         if (listening && hasPermission) {
             vm.setMicSource(true)
-            engine.start(kotlinx.coroutines.MainScope()) { l ->
-                level = l
-                vm.sendReactive(((1f - l) * 265f).toInt(), 1f)
-            }
+            micError = false
+            engine.start(
+                engineScope,
+                { l ->
+                    level = l
+                    vm.sendReactive(((1f - l) * 265f).toInt(), 1f)
+                },
+                { micError = true; listening = false } // 初始化失败（权限被撤/设备占用）
+            )
         } else {
             engine.stop()
             level = 0f
@@ -201,9 +232,13 @@ private fun PhoneMicPanel(vm: AppViewModel) {
                 )
             }
             Text(
-                if (!hasPermission) "需要麦克风权限驱动律动" else "响度映射色相：安静深蓝 → 高潮红",
+                when {
+                    !hasPermission -> "需要麦克风权限驱动律动"
+                    micError -> "麦克风启动失败（被占用或权限被撤），请重试"
+                    else -> "响度映射色相：安静深蓝 → 高潮红"
+                },
                 style = MaterialTheme.typography.labelMedium,
-                color = if (!hasPermission) MaterialTheme.colorScheme.error
+                color = if (!hasPermission || micError) MaterialTheme.colorScheme.error
                 else MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -268,16 +303,19 @@ private fun MusicPanel(vm: AppViewModel) {
     var positionMs by remember { mutableStateOf(0) }
     var durationMs by remember { mutableStateOf(0) }
 
-    // 播完回落：状态归"未播放"、律动停（审查对比表缺口补齐）
-    DisposableEffect(Unit) {
-        player.setOnCompletionListener {
+    var preparing by remember { mutableStateOf(false) }
+    var musicError by remember { mutableStateOf(false) }
+    var reactiveUnavailable by remember { mutableStateOf(false) }
+
+    // Home/锁屏即暂停（R19-05：无后台服务，后台续播不在范围）
+    OnLifecycleStop {
+        if (playing || preparing) {
+            try {
+                player.pause()
+            } catch (_: IllegalStateException) {
+            }
             playing = false
-            positionMs = durationMs
             visualizer[0]?.enabled = false
-        }
-        onDispose {
-            visualizer[0]?.release()
-            player.release()
         }
     }
 
@@ -310,18 +348,48 @@ private fun MusicPanel(vm: AppViewModel) {
         visualizer[0] = v
     }
 
+    // 播完回落 + 异步准备回调 + 播放错误（R19-05：prepare 不再主线程阻塞；错误有可见状态）
+    DisposableEffect(Unit) {
+        player.setOnCompletionListener {
+            playing = false
+            preparing = false
+            positionMs = durationMs
+            visualizer[0]?.enabled = false
+        }
+        player.setOnPreparedListener { p ->
+            preparing = false
+            p.start()
+            playing = true
+            durationMs = try { p.duration } catch (_: Exception) { 0 }
+            try {
+                startReactive(p.audioSessionId)
+            } catch (_: Exception) {
+                reactiveUnavailable = true // 部分 HAL 不支持效果捕获：播放不受影响，律动不可用
+            }
+        }
+        player.setOnErrorListener { _, _, _ ->
+            preparing = false; playing = false; musicError = true; true
+        }
+        onDispose {
+            visualizer[0]?.release()
+            visualizer[0] = null
+            player.release()
+        }
+    }
+
+
     fun play(song: Song) {
+        musicError = false
+        reactiveUnavailable = false
         try {
             player.reset()
             player.setAudioStreamType(AudioManager.STREAM_MUSIC)
             player.setDataSource(context, song.uri)
-            player.prepare()
-            player.start()
-            playing = true
-            durationMs = try { player.duration } catch (_: Exception) { 0 }
-            try { startReactive(player.audioSessionId) } catch (_: Exception) {}
+            preparing = true
+            player.prepareAsync() // 异步：不阻塞主线程（R19-05）
         } catch (_: Exception) {
-            playing = false
+            preparing = false
+            musicError = true
         }
     }
 
@@ -334,8 +402,15 @@ private fun MusicPanel(vm: AppViewModel) {
                 Column(Modifier.weight(1f).padding(start = 12.dp)) {
                     Text(current?.title ?: "未播放", style = MaterialTheme.typography.titleMedium, maxLines = 1)
                     Text(
-                        current?.artist ?: if (hasPermission) "从下方曲库选择" else "需要音频读取权限",
-                        style = MaterialTheme.typography.bodySmall, maxLines = 1
+                        when {
+                            musicError -> "播放失败，请重试"
+                            preparing -> "准备中…"
+                            reactiveUnavailable -> "播放正常，但该设备不支持波形捕获（律动不可用）"
+                            else -> current?.artist ?: if (hasPermission) "从下方曲库选择" else "需要音频读取权限"
+                        },
+                        style = MaterialTheme.typography.bodySmall, maxLines = 1,
+                        color = if (musicError) MaterialTheme.colorScheme.error
+                        else MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 IconButton(onClick = {
