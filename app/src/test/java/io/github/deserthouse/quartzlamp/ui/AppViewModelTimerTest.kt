@@ -118,6 +118,11 @@ class AppViewModelTimerTest {
         assertFalse(close.loaded)
     }
 
+    @Test fun `进定时页发对时帧-P0`() {
+        vm.syncClock()
+        assertTrue(lamp.sentFrames.any { it.startsWith("7E0783") })
+    }
+
     @Test fun `读回记录读取目标灯-R19-09`() {
         lamp.timerRead = { setFrame(7, 30, 0x15, open = true) }
         vm.queryTimerSlot(true)

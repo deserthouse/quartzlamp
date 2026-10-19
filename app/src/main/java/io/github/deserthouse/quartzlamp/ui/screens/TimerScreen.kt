@@ -55,6 +55,9 @@ private fun summarize(slot: AppViewModel.TimerSlot, open: Boolean): String {
 fun TimerScreen(vm: AppViewModel) {
     val timer by vm.timer.collectAsState()
 
+    // 进页即对时（厂商 timer.initView 同构，P0 审计补强）——定时的正确性依赖灯内时钟
+    androidx.compose.runtime.LaunchedEffect(Unit) { vm.syncClock() }
+
     Column(
         modifier = Modifier
             .fillMaxSize()

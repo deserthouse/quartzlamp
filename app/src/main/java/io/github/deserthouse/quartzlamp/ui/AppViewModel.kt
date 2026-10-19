@@ -222,6 +222,17 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
         }
     }
 
+    /** 进定时页即对时（厂商 timer.initView 同构，P0 审计补强）；帧历时间为 Calendar 现取 */
+    fun syncClock() {
+        val c = java.util.Calendar.getInstance()
+        lamp.send(
+            LampFrames.timeSync(
+                c.get(java.util.Calendar.HOUR_OF_DAY), c.get(java.util.Calendar.MINUTE),
+                c.get(java.util.Calendar.SECOND), c.get(java.util.Calendar.DAY_OF_WEEK) - 1
+            )
+        )
+    }
+
     /** 定时读取目标：首个已连接灯（名称缺失退 MAC） */
     private fun connectedLampName(): String? {
         val mac = lamp.sessions.value.filterValues { it == SessionState.CONNECTED }.keys.firstOrNull()
