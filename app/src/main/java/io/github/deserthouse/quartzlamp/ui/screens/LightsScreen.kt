@@ -51,7 +51,6 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
@@ -157,49 +156,58 @@ fun LightsScreen(vm: AppViewModel) {
 private fun StaticPane(vm: AppViewModel) {
     val color by vm.color.collectAsState()
 
-    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-        HueWheel(
-            hue = color.hue,
-            onPick = { h -> vm.setColor(h, color.sat, send = false) },
-            onPicked = { h -> vm.setColor(h, color.sat, send = true) },
-            modifier = Modifier.size(260.dp)
-        )
-    }
-
-    // 控制条：仅饱和度（D3——亮度在设备页）
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Row(verticalAlignment = Alignment.Bottom) {
-            Text(
-                "${(color.sat * 100).toInt()}%",
-                style = MaterialTheme.typography.headlineSmall,
-                modifier = Modifier.weight(1f)
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+            HueWheel(
+                hue = color.hue,
+                onPick = { h -> vm.setColor(h, color.sat, send = false) },
+                onPicked = { h -> vm.setColor(h, color.sat, send = true) },
+                modifier = Modifier.size(260.dp)
             )
-            Text("饱和度", style = MaterialTheme.typography.titleMedium)
         }
-        Slider(
-            value = color.sat,
-            onValueChange = { vm.setColor(color.hue, it, send = false) },
-            onValueChangeFinished = { vm.setColor(color.hue, color.sat, send = true) },
-            valueRange = 0f..1f,
-            modifier = Modifier.semantics { contentDescription = "饱和度：当前 ${(color.sat * 100).toInt()}%" }
-        )
-    }
 
-    Text("预设", style = MaterialTheme.typography.titleMedium)
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        presets.chunked(4).forEach { row ->
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                row.forEach { p ->
-                    PresetDot(
-                        preset = p,
-                        selected = color.hue == p.hue,
-                        modifier = Modifier.weight(1f)
-                    ) { vm.setColor(p.hue, p.sat) }
+        // 控制条：仅饱和度（D3——亮度在设备页）
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Row(verticalAlignment = Alignment.Bottom) {
+                Text(
+                    "${(color.sat * 100).toInt()}%",
+                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.weight(1f)
+                )
+                Text("饱和度", style = MaterialTheme.typography.titleMedium)
+            }
+            Slider(
+                value = color.sat,
+                onValueChange = { vm.setColor(color.hue, it, send = false) },
+                onValueChangeFinished = { vm.setColor(color.hue, color.sat, send = true) },
+                valueRange = 0f..1f,
+                modifier = Modifier.semantics {
+                    contentDescription = "饱和度：当前 ${(color.sat * 100).toInt()}%"
+                }
+            )
+        }
+
+        Text("预设", style = MaterialTheme.typography.titleMedium)
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            presets.chunked(4).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    row.forEach { p ->
+                        PresetDot(
+                            preset = p,
+                            selected = color.hue == p.hue,
+                            modifier = Modifier.weight(1f)
+                        ) { vm.setColor(p.hue, p.sat) }
+                    }
                 }
             }
         }
+        Spacer(Modifier.height(8.dp))
     }
-    Spacer(Modifier.height(8.dp))
 }
 
 @Composable
@@ -250,23 +258,31 @@ private fun HueWheel(
                 .pointerInput(onPick, onPicked) {
                     val strokePx = 34.dp.toPx()
                     val half = strokePx / 2
+                    val ringR = min(size.width, size.height) / 2f - half
+                    val slack = 12.dp.toPx()
                     val cx = size.width / 2.0
                     val cy = size.height / 2.0
                     detectTapGestures { off ->
-                        pickFrom(off, cx, cy)?.let(onPicked)
+                        pickFrom(off, cx, cy, ringR.toDouble(), half.toDouble(), slack.toDouble())?.let(onPicked)
                     }
                 }
                 .pointerInput(onPick, onPicked) {
+                    val strokePx = 34.dp.toPx()
+                    val half = strokePx / 2
+                    val ringR = min(size.width, size.height) / 2f - half
+                    val slack = 12.dp.toPx()
                     val cx = size.width / 2.0
                     val cy = size.height / 2.0
                     detectDragGestures(
                         onDragEnd = {
-                            lastDrag?.let { pickFrom(it, cx, cy)?.let(onPicked) }
+                            lastDrag?.let {
+                                pickFrom(it, cx, cy, ringR.toDouble(), half.toDouble(), slack.toDouble())?.let(onPicked)
+                            }
                         }
                     ) { change, _ ->
                         change.consume()
                         lastDrag = change.position
-                        pickFrom(change.position, cx, cy)?.let(onPick)
+                        pickFrom(change.position, cx, cy, ringR.toDouble(), half.toDouble(), slack.toDouble())?.let(onPick)
                     }
                 }
         ) {
@@ -298,14 +314,16 @@ private fun HueWheel(
     }
 }
 
-/** 位置 → 色相（0°=右顺时针）；环外无效返回 null */
-private fun pickFrom(pos: Offset, cx: Double, cy: Double): Int? {
+/**
+ * 位置 → 色相（0°=右顺时针）。环带几何由调用方按密度换算传入（ringR/halfStroke/slack，
+ * 勿用硬编码像素——260dp 环带实际在 240-360px@2.625x，魔法数阈值会把"点环"全部拒掉）。
+ * 中心盘与环外返回 null。
+ */
+private fun pickFrom(pos: Offset, cx: Double, cy: Double, ringR: Double, halfStroke: Double, slack: Double): Int? {
     val dx = pos.x - cx
     val dy = pos.y - cy
-    // 中心盘（140dp 直径）与环外都拒绝：命中即近似环带
     val dist = sqrt(dx * dx + dy * dy)
-    val maxR = 200.0
-    if (dist < 70.0 || dist > maxR) return null
+    if (!inRingBand(dist, ringR, halfStroke, slack)) return null
     return hueAt(dx, dy)
 }
 
@@ -363,11 +381,13 @@ private fun HintBar(name: String, modifier: Modifier) {
 private fun EffectPane(vm: AppViewModel) {
     val mode by vm.mode.collectAsState()
     val conn by vm.state.collectAsState()
-    val context = LocalContext.current
     var tab by remember { mutableIntStateOf(mode.tab) }
     val selectedQuandeng = (mode.selected - 1) / 17 == 8
 
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(
+        Modifier.fillMaxSize(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
         // 当前效果条
         Surface(
             shape = MaterialTheme.shapes.large,
@@ -446,14 +466,14 @@ private fun EffectPane(vm: AppViewModel) {
             }
         }
 
-        // 双列网格（占主空间）
+        // 双列网格（weight(1f)：吃掉中段全部剩余高度，内部控制条恒可见）
         LazyVerticalGrid(
             columns = GridCells.Fixed(2),
             verticalArrangement = Arrangement.spacedBy(10.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .height(380.dp)
+                .weight(1f)
         ) {
             itemsIndexed(Effects.effects[tab]) { pos, name ->
                 val deviceIndex = Effects.deviceIndex(tab, pos)
@@ -516,9 +536,6 @@ private fun EffectPane(vm: AppViewModel) {
                 )
             }
         }
-        // context 参考保留（避免未用告警的占位——若后续扩展本页需要 context）
-        @Suppress("UNUSED_EXPRESSION")
-        context
     }
 }
 

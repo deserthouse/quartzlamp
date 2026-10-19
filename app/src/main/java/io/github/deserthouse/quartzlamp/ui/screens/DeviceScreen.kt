@@ -207,7 +207,7 @@ private fun ConnectionCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("连接管理", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                 if (state == ConnState.SCANNING) {
-                    CircularProgressIndicator(Modifier.padding(end = 12.dp).height(20.dp))
+                    CircularProgressIndicator(Modifier.padding(end = 12.dp).size(20.dp))
                 }
                 if (!granted) {
                     Button(onClick = onPermRequest) { Text("授权蓝牙") }
@@ -253,22 +253,48 @@ private fun ConnectionCard(
             ) {
                 items(scanned, key = { it.mac }) { lamp ->
                     val session = sessions[lamp.mac] ?: SessionState.DISCONNECTED
-                    ListItem(
-                        headlineContent = { Text(lamp.name) },
-                        supportingContent = { Text("${lamp.mac} · ${lamp.rssi} dBm") },
-                        trailingContent = {
-                            when (session) {
-                                SessionState.CONNECTED ->
-                                    TextButton(onClick = { vm.disconnect(lamp.mac) }) { Text("断开") }
-                                SessionState.CONNECTING ->
-                                    Text("连接中…", style = MaterialTheme.typography.labelMedium)
-                                SessionState.RECONNECTING ->
-                                    Text("重连中…", style = MaterialTheme.typography.labelMedium)
-                                SessionState.DISCONNECTED ->
-                                    TextButton(onClick = { vm.connect(lamp) }) { Text("连接") }
+                    // M3E 行容器：圆角 Surface + 连接态着色（非裸 ListItem 矩形）
+                    Surface(
+                        shape = MaterialTheme.shapes.small,
+                        color = when (session) {
+                            SessionState.CONNECTED -> MaterialTheme.colorScheme.secondaryContainer
+                            else -> MaterialTheme.colorScheme.surface
+                        },
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 2.dp)
+                    ) {
+                        ListItem(
+                            headlineContent = {
+                                Text(
+                                    lamp.name,
+                                    color = if (session == SessionState.CONNECTED)
+                                        MaterialTheme.colorScheme.onSecondaryContainer
+                                    else MaterialTheme.colorScheme.onSurface
+                                )
+                            },
+                            supportingContent = {
+                                Text(
+                                    "${lamp.mac} · ${lamp.rssi} dBm",
+                                    color = if (session == SessionState.CONNECTED)
+                                        MaterialTheme.colorScheme.onSecondaryContainer
+                                    else MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            },
+                            trailingContent = {
+                                when (session) {
+                                    SessionState.CONNECTED ->
+                                        TextButton(onClick = { vm.disconnect(lamp.mac) }) { Text("断开") }
+                                    SessionState.CONNECTING ->
+                                        Text("连接中…", style = MaterialTheme.typography.labelMedium)
+                                    SessionState.RECONNECTING ->
+                                        Text("重连中…", style = MaterialTheme.typography.labelMedium)
+                                    SessionState.DISCONNECTED ->
+                                        TextButton(onClick = { vm.connect(lamp) }) { Text("连接") }
+                                }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
             }
 

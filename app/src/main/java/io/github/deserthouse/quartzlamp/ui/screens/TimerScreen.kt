@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -96,7 +97,7 @@ private fun TimerCard(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                 if (slot.busy) {
-                    CircularProgressIndicator(Modifier.padding(end = 10.dp).height(18.dp))
+                    CircularProgressIndicator(Modifier.padding(end = 10.dp).size(18.dp))
                 }
                 Text(
                     when {
