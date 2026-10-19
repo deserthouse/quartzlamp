@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Icon
@@ -38,7 +37,6 @@ import io.github.deserthouse.quartzlamp.ui.AppViewModel
 import io.github.deserthouse.quartzlamp.ui.screens.AboutScreen
 import io.github.deserthouse.quartzlamp.ui.screens.ColorScreen
 import io.github.deserthouse.quartzlamp.ui.screens.ModeScreen
-import io.github.deserthouse.quartzlamp.ui.screens.RhythmScreen
 import io.github.deserthouse.quartzlamp.ui.screens.ScanScreen
 import io.github.deserthouse.quartzlamp.ui.screens.TimerScreen
 import io.github.deserthouse.quartzlamp.ui.theme.QuartzLampTheme
@@ -65,7 +63,6 @@ private data class Tab(val route: String, val label: String, val icon: ImageVect
 private val tabs = listOf(
     Tab("color", "调色", Icons.Filled.Palette),
     Tab("mode", "灯效", Icons.Filled.AutoAwesome),
-    Tab("rhythm", "律动", Icons.Filled.GraphicEq),
     Tab("timer", "定时", Icons.Filled.Schedule),
 )
 
@@ -140,7 +137,6 @@ private fun MainScaffold(vm: AppViewModel) {
         ) {
             composable("color") { ColorScreen(vm) }
             composable("mode") { ModeScreen(vm) }
-            composable("rhythm") { RhythmScreen(vm) }
             composable("timer") { TimerScreen(vm) }
             composable("scan") { ScanScreen(vm, onAbout = { nav.navigate("about") }) }
             composable("about") { AboutScreen() }

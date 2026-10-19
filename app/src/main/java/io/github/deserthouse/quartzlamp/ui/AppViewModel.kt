@@ -14,11 +14,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-/** 律动声源（2026-10-19 R19-01：切换动作收敛到 VM，帧副作用可单测） */
-enum class RhythmSource(val label: String) {
-    PHONE_MIC("手机麦"), LAMP_MIC("灯载麦"), MUSIC("本地音乐")
-}
-
 /**
  * 全局唯一 ViewModel：连接状态 + 各页控制语义（帧构造全走 protocol 层）。
  * 厂商默认值（ble_protocol.md §4）：speed=50, sensitivity=50。
@@ -59,28 +54,12 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
 
     // ━━━ 麦克风 ━━━
     data class MicState(
-        val phoneMic: Boolean = true,
         val type: Int = 1,
         val sensitivity: Int = 50
     )
 
     private val _mic = MutableStateFlow(MicState())
     val mic: StateFlow<MicState> = _mic
-
-    // ━━━ 律动源（R19-01：源切换驱动灯端帧——灯载麦=00+重下发类型/灵敏度，手机驱动源=01）━━━
-    private val _rhythmSource = MutableStateFlow(RhythmSource.PHONE_MIC)
-    val rhythmSource: StateFlow<RhythmSource> = _rhythmSource
-
-    fun selectRhythmSource(s: RhythmSource) {
-        if (_rhythmSource.value == s) return
-        _rhythmSource.value = s
-        // 手机麦/本地音乐都是手机驱动 BC09 → 灯端声源须为 01；灯载麦=00 并重下发灯端配置
-        lamp.send(LampFrames.micSource(s != RhythmSource.LAMP_MIC))
-        if (s == RhythmSource.LAMP_MIC) {
-            lamp.send(LampFrames.micType(_mic.value.type))
-            lamp.send(LampFrames.micSensitivity(_mic.value.sensitivity))
-        }
-    }
 
     // ━━━ 定时（F05/F06 重做）━━━
     /**
@@ -150,11 +129,6 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
 
     fun sendSensitivity() = lamp.send(LampFrames.sensitivity(_mode.value.sensitivity))
 
-    fun setMicSource(phoneMic: Boolean) {
-        _mic.value = _mic.value.copy(phoneMic = phoneMic)
-        lamp.send(LampFrames.micSource(phoneMic))
-    }
-
     fun setMicType(type: Int) {
         _mic.value = _mic.value.copy(type = type)
         lamp.send(LampFrames.micType(type))
@@ -166,9 +140,6 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
 
     fun sendMicSensitivity() =
         lamp.send(LampFrames.micSensitivity(_mic.value.sensitivity))
-
-    /** 手机麦 dB → 律动变色（帧#6） */
-    fun sendReactive(hue: Int, sat: Float) = lamp.send(LampFrames.reactiveColor(hue, sat))
 
     // ━━━ 定时：槽位编辑/保存/读取（全部 update{} 原子改） ━━━
 
