@@ -232,9 +232,13 @@ private fun PresetDot(preset: Preset, selected: Boolean, modifier: Modifier, onT
         contentAlignment = Alignment.Center
     ) {
         if (selected) {
+            // W-R3：亮色预设（黄/白系）白勾不可见——按亮度选墨色勾
+            val c = colorOf(preset.hue, preset.sat)
+            val lum = 0.299f * c.red + 0.587f * c.green + 0.114f * c.blue
             Icon(
                 Icons.Filled.Check, contentDescription = null,
-                tint = Color.White, modifier = Modifier.size(20.dp)
+                tint = if (lum > 0.6f) Color(0xFF1B1B21) else Color.White,
+                modifier = Modifier.size(20.dp)
             )
         }
     }
@@ -382,17 +386,26 @@ private fun HintBar(name: String, tab: Int, modifier: Modifier) {
     }
     val cat = Effects.subCatOf(tab, name)
     val colors = hintColors(baseName)
+    val outlineColor = MaterialTheme.colorScheme.outline
     Canvas(modifier.height(10.dp).clip(RoundedCornerShape(5.dp))) {
         when (cat) {
             Effects.SubCat.DUO -> {
                 drawRect(colors[0]) // 底色满幅
                 if (colors.size > 1) {
                     val blockW = size.width * 0.45f
-                    drawRect(
-                        colors[1],
-                        topLeft = Offset((size.width - blockW) / 2f, 0f),
-                        size = Size(blockW, size.height)
-                    )
+                    val topLeft = Offset((size.width - blockW) / 2f, 0f)
+                    val blockSize = Size(blockW, size.height)
+                    drawRect(colors[1], topLeft = topLeft, size = blockSize)
+                    // W-R3：近白前景块加描边（浅色卡底上块形可辨）
+                    val lum = 0.299f * colors[1].red + 0.587f * colors[1].green + 0.114f * colors[1].blue
+                    if (lum > 0.8f) {
+                        drawRect(
+                            color = outlineColor,
+                            style = Stroke(1.dp.toPx()),
+                            topLeft = topLeft,
+                            size = blockSize
+                        )
+                    }
                 }
             }
             Effects.SubCat.RAINBOW -> drawRect(Brush.horizontalGradient(rainbow))
