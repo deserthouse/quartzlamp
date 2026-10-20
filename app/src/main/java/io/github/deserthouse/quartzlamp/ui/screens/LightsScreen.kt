@@ -168,7 +168,7 @@ private fun StaticPane(vm: AppViewModel) {
                 hue = color.hue,
                 currentSat = color.sat,
                 onPick = { h -> vm.setColor(h, color.sat, send = false) },
-                onPicked = { h -> vm.setColor(h, color.sat, send = true) },
+                onPicked = { h -> vm.setColor(h, color.sat, send = false); vm.commitColor() },
                 modifier = Modifier.size(260.dp)
             )
         }
@@ -186,7 +186,9 @@ private fun StaticPane(vm: AppViewModel) {
             Slider(
                 value = color.sat,
                 onValueChange = { vm.setColor(color.hue, it, send = false) },
-                onValueChangeFinished = { vm.setColor(color.hue, color.sat, send = true) },
+                // AV04-09：松手不读闭包快照（快速点按会把刚更新的值覆盖回旧值）——
+                // commit 从 VM 权威当前值提交，拖/点路径一致
+                onValueChangeFinished = { vm.commitColor() },
                 valueRange = 0f..1f,
                 modifier = Modifier.semantics {
                     contentDescription = "饱和度：当前 ${(color.sat * 100).toInt()}%"
@@ -269,7 +271,7 @@ private fun HueWheel(
                     val cx = size.width / 2.0
                     val cy = size.height / 2.0
                     detectTapGestures { off ->
-                        pickFrom(off, cx, cy, ringR.toDouble(), half.toDouble(), slack.toDouble())?.let(onPicked)
+                        pickFrom(off, cx, cy, ringR.toDouble(), half.toDouble(), slack.toDouble())?.let(currentOnPicked)
                     }
                 }
                 .pointerInput(Unit) {
@@ -280,15 +282,17 @@ private fun HueWheel(
                     val cx = size.width / 2.0
                     val cy = size.height / 2.0
                     detectDragGestures(
+                        onDragCancel = { lastDrag = null }, // AV04 自首：取消不提交陈旧值
                         onDragEnd = {
                             lastDrag?.let {
-                                pickFrom(it, cx, cy, ringR.toDouble(), half.toDouble(), slack.toDouble())?.let(onPicked)
+                                pickFrom(it, cx, cy, ringR.toDouble(), half.toDouble(), slack.toDouble())?.let(currentOnPicked)
                             }
+                            lastDrag = null
                         }
                     ) { change, _ ->
                         change.consume()
                         lastDrag = change.position
-                        pickFrom(change.position, cx, cy, ringR.toDouble(), half.toDouble(), slack.toDouble())?.let(onPick)
+                        pickFrom(change.position, cx, cy, ringR.toDouble(), half.toDouble(), slack.toDouble())?.let(currentOnPick)
                     }
                 }
         ) {
@@ -387,59 +391,66 @@ private fun HintBar(name: String, modifier: Modifier) {
 private fun EffectPane(vm: AppViewModel) {
     val mode by vm.mode.collectAsState()
     val conn by vm.state.collectAsState()
+    val lampMode by vm.lampMode.collectAsState()
+    val effectOk by vm.lastEffectSendOk.collectAsState()
+    val powerOn by vm.powerOn.collectAsState()
     var tab by remember { mutableIntStateOf(mode.tab) }
     val selectedQuandeng = (mode.selected - 1) / 17 == 8
 
+    // AV04-02：整页可滚动——网格非懒加载（17 项/页），任何屏高度网格不为零；
+    // 控制条随滚动流在网格后，短屏滚到底可达
     Column(
-        Modifier.fillMaxSize(),
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // 当前效果条
+        // 紧凑当前效果条（单行，高度 ~56dp——不再挤占主选择区）
         Surface(
             shape = MaterialTheme.shapes.large,
             color = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
             modifier = Modifier.fillMaxWidth()
         ) {
-            Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
                     Text(
-                        "当前灯效",
-                        style = MaterialTheme.typography.labelMedium,
-                        modifier = Modifier.weight(1f)
+                        Effects.nameOf(mode.selected),
+                        style = MaterialTheme.typography.titleMedium,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis
                     )
-                    // 有依据的状态（R19-08）：未连接不得伪装"运行中"
-                    if (conn == ConnState.CONNECTED) {
-                        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.primary) {
-                            Text(
-                                "运行中",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onPrimary,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
-                            )
-                        }
-                    } else {
-                        Surface(shape = CircleShape, color = MaterialTheme.colorScheme.surface) {
-                            Text(
-                                "未连接",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
-                            )
-                        }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        HintBar(Effects.nameOf(mode.selected), Modifier.weight(1f))
+                        Text("示意", style = MaterialTheme.typography.labelMedium)
                     }
                 }
-                Text(
-                    Effects.nameOf(mode.selected),
-                    style = MaterialTheme.typography.headlineSmall,
-                    maxLines = 2, overflow = TextOverflow.Ellipsis
-                )
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                // AV04-04：徽章有依据——已连接+灯效模式+该帧真实投递成功+电源开
+                val running = conn == ConnState.CONNECTED &&
+                    lampMode is LampMode.Effect && effectOk && powerOn
+                Surface(
+                    shape = CircleShape,
+                    color = if (running) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.surface,
+                    contentColor = if (running) MaterialTheme.colorScheme.onPrimary
+                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(start = 8.dp)
                 ) {
-                    HintBar(Effects.nameOf(mode.selected), Modifier.weight(1f))
-                    Text("示意", style = MaterialTheme.typography.labelMedium)
+                    Text(
+                        when {
+                            running -> "运行中"
+                            conn != ConnState.CONNECTED -> "未连接"
+                            !powerOn -> "已关灯"
+                            else -> "已选择"
+                        },
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp)
+                    )
                 }
             }
         }
@@ -472,64 +483,35 @@ private fun EffectPane(vm: AppViewModel) {
             }
         }
 
-        // 双列网格（weight(1f)：吃掉中段全部剩余高度，内部控制条恒可见）
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-        ) {
-            itemsIndexed(Effects.effects[tab]) { pos, name ->
-                val deviceIndex = Effects.deviceIndex(tab, pos)
-                val selected = mode.selected == deviceIndex
-                Surface(
-                    shape = MaterialTheme.shapes.medium,
-                    color = if (selected) MaterialTheme.colorScheme.primaryContainer
-                    else MaterialTheme.colorScheme.surfaceVariant,
-                    contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier
-                        .clip(MaterialTheme.shapes.medium)
-                        .border(
-                            width = if (selected) 2.dp else 0.dp,
-                            color = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
-                            shape = MaterialTheme.shapes.medium
-                        )
-                        .clickable { vm.selectEffect(tab, pos, deviceIndex) }
-                ) {
-                    Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Row(verticalAlignment = Alignment.Top) {
-                            Text(
-                                name,
-                                style = MaterialTheme.typography.bodyMedium,
-                                maxLines = 2, overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f)
-                            )
-                            if (selected) {
-                                Icon(
-                                    Icons.Filled.Check, contentDescription = "已选中",
-                                    tint = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier
-                                        .size(18.dp)
-                                        .padding(start = 4.dp)
-                                )
-                            }
-                        }
-                        HintBar(name, Modifier.fillMaxWidth())
-                    }
+        // 双列网格（非懒加载：17 项/页，自然高度——短屏不再归零）
+        val items = Effects.effects[tab]
+        items.chunked(2).forEachIndexed { rowIndex, rowItems ->
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                rowItems.forEachIndexed { col, name ->
+                    val pos = rowIndex * 2 + col
+                    val deviceIndex = Effects.deviceIndex(tab, pos)
+                    val selected = mode.selected == deviceIndex
+                    EffectCard(
+                        name = name,
+                        selected = selected,
+                        modifier = Modifier.weight(1f)
+                    ) { vm.selectEffect(tab, pos, deviceIndex) }
                 }
+                if (rowItems.size == 1) Spacer(Modifier.weight(1f)) // 奇数行占位对齐
             }
         }
 
-        // 底部紧凑控制条：速度+模式灵敏度两行（无亮度——D3）
+        // 控制条（随滚动流；常规屏也在一屏内）
         Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceVariant) {
             Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
                 CompactSlider(
                     label = "速度",
                     note = if (selectedQuandeng) "已选全灯类，上限 70" else null,
-                    value = mode.speed,
+                    // AV04-04：显示发送值——限幅时 UI 与帧一致
+                    value = if (selectedQuandeng) mode.speed.coerceAtMost(70) else mode.speed,
                     onDrag = { vm.updateSpeed(it) },
                     onRelease = { vm.sendSpeed() }
                 )
@@ -541,6 +523,47 @@ private fun EffectPane(vm: AppViewModel) {
                     onRelease = { vm.sendSensitivity() }
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun EffectCard(name: String, selected: Boolean, modifier: Modifier, onTap: () -> Unit) {
+    Surface(
+        shape = MaterialTheme.shapes.medium,
+        color = if (selected) MaterialTheme.colorScheme.primaryContainer
+        else MaterialTheme.colorScheme.surfaceVariant,
+        contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer
+        else MaterialTheme.colorScheme.onSurfaceVariant,
+        modifier = modifier
+            .padding(vertical = 5.dp)
+            .clip(MaterialTheme.shapes.medium)
+            .border(
+                width = if (selected) 2.dp else 0.dp,
+                color = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
+                shape = MaterialTheme.shapes.medium
+            )
+            .clickable(onClick = onTap)
+    ) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(verticalAlignment = Alignment.Top) {
+                Text(
+                    name,
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 2, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                if (selected) {
+                    Icon(
+                        Icons.Filled.Check, contentDescription = "已选中",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier
+                            .size(18.dp)
+                            .padding(start = 4.dp)
+                    )
+                }
+            }
+            HintBar(name, Modifier.fillMaxWidth())
         }
     }
 }
