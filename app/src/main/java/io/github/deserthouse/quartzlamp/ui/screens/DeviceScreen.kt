@@ -232,7 +232,7 @@ private fun PowerBrightnessCard(vm: AppViewModel) {
                 )
             }
             Text(
-                "亮度为全局参数：任何模式（单色/灯效）下调整均生效",
+                "亮度为全局参数：任何模式（静态/动态）下调整均生效",
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

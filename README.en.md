@@ -10,15 +10,15 @@
 An unofficial Material 3 Expressive Android controller for the Lenze Tech
 sound-reactive lamp ("拾音灯"), rebuilt from scratch.
 
-## Features (three tabs: Device / Lights / Timer)
+## Features (three tabs: Device / Effects / Timer)
 
 - **Device**: power as the primary action + brightness (a global parameter — applies in
   both static-color and effect modes) + connection management (multi-lamp, per-device
   connect/disconnect/reconnect; limited auto-reconnect 3×4s after unexpected drops,
   manual disconnects never fight back) + lamp pickup configuration (four pickup styles
   and sensitivity for the lamp's own microphone)
-- **Lights**: `Static | Effect` segmented toggle, applied exclusively —
-  Static = hue wheel + 8 presets (BC04 static color); Effect = 153 built-in effects
+- **Effects**: `Static | Dynamic` segmented toggle, applied exclusively —
+  Static = hue wheel + 8 presets (BC04 static color); Dynamic = 153 built-in effects
   (9 categories × 17) with original names, name-color hint bars, speed/sensitivity
 - **Timer**: weekly on/off schedules (two hardware slots), stored on the lamp and
   readable back (no "enable" switch — the protocol has no such bit; saving sends

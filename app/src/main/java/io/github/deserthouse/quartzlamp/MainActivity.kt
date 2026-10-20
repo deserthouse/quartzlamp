@@ -68,10 +68,10 @@ class MainActivity : ComponentActivity() {
 
 private data class Tab(val route: String, val label: String, val icon: ImageVector)
 
-/** 三 tab（V 系列定案）：设备（起始，D4——每次启动先连接）/ 灯光（单色|灯效）/ 定时。 */
+/** 三 tab：设备（起始，D4——每次启动先连接）/ 灯效（静态|动态）/ 定时。 */
 private val tabs = listOf(
     Tab("device", "设备", Icons.Outlined.Bluetooth),
-    Tab("lights", "灯光", Icons.Filled.Lightbulb),
+    Tab("lights", "灯效", Icons.Filled.Lightbulb),
     Tab("timer", "定时", Icons.Filled.Schedule),
 )
 @OptIn(ExperimentalMaterial3Api::class)

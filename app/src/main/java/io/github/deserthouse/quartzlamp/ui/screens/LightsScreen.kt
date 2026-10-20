@@ -67,8 +67,8 @@ import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.sqrt
 
-/** 灯光子模式（页内分段） */
-private enum class LightsPane(val label: String) { STATIC("单色"), EFFECT("灯效") }
+/** 灯效页子模式（页内分段，N4b 更名：静态=纯色/动态=灯效） */
+private enum class LightsPane(val label: String) { STATIC("静态"), EFFECT("动态") }
 
 // ━━━ 色彩工具（自 ColorScreen 迁入，HueMathTest 同包引用）━━━
 
@@ -102,9 +102,10 @@ private val presets = listOf(
 )
 
 /**
- * 灯光 tab（V 系列合并页，U3/U4）：`单色|灯效` 分段=灯模式互斥选择。
- * 单色=色环+预设+饱和度（无亮度——D3，亮度在设备页）；
- * 灯效=当前效果条+分类+双列网格+速度/模式灵敏度（限幅跟已选效果）。
+ * 灯效 tab（V 系列合并页，U3/U4；N4b 更名）：`静态|动态` 分段=灯模式互斥选择。
+ * 静态=色环+预设+饱和度（无亮度——D3，亮度在设备页）；
+ * 动态=控制条+当前效果条+分类+双列网格（限幅跟已选效果）。
+ * 历史名："灯光"tab/"单色|灯效"分段（0.4.2 及之前）。
  */
 @Composable
 fun LightsScreen(vm: AppViewModel) {
@@ -119,7 +120,7 @@ fun LightsScreen(vm: AppViewModel) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("灯光", style = MaterialTheme.typography.headlineLarge)
+        Text("灯效", style = MaterialTheme.typography.headlineLarge)
 
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
             LightsPane.entries.forEachIndexed { i, p ->
