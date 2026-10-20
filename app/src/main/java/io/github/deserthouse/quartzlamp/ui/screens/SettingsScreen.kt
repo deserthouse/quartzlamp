@@ -18,8 +18,10 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.deserthouse.quartzlamp.BuildConfig
+import io.github.deserthouse.quartzlamp.R
 import io.github.deserthouse.quartzlamp.QuartzLampApp
 
 /** 设置页（V 系列 P2，由 About 迁入）：主题双轨开关 + 关于 + 声明。入口=顶栏右上 ⚙️。 */
@@ -64,7 +66,7 @@ fun SettingsScreen() {
             Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("关于", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "QuartzLamp · v${BuildConfig.VERSION_NAME} (versionCode ${BuildConfig.VERSION_CODE})",
+                    "${stringResource(R.string.app_name_en)} · v${BuildConfig.VERSION_NAME} (versionCode ${BuildConfig.VERSION_CODE})",
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
