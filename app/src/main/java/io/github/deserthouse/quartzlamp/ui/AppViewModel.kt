@@ -127,9 +127,17 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
     private val _timer = MutableStateFlow(TimerUiState())
     val timer: StateFlow<TimerUiState> = _timer
 
+    /**
+     * 电源开关（CR-2 结果驱动）：状态型控制不得乐观置位——
+     * NoTarget（未发出）/Failed（灯未生效）保持现值，仅真实投递成功才更新目标值。
+     */
     fun setPower(on: Boolean) {
-        _powerOn.value = on
-        fire { lamp.send(LampFrames.power(on)) }
+        fire {
+            when (lamp.send(LampFrames.power(on))) {
+                SendResult.SentToAll, SendResult.SentToSome -> _powerOn.value = on
+                else -> {}
+            }
+        }
     }
 
     fun setColor(hue: Int, sat: Float, send: Boolean = true) {
@@ -337,6 +345,14 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
         }
         viewModelScope.launch {
             lamp.sessionReady.collect { /* mac -> */ applyLampPickupFrames() }
+        }
+        // CR-1：全部会话离开 CONNECTED 时复位灯效投递位——重连后新会话从未收到 BC06，
+        // 旧投递证据不得延续（否则"运行中"徽章虚标）
+        viewModelScope.launch {
+            lamp.sessions.collect { sessions ->
+                val anyConnected = sessions.values.any { it == SessionState.CONNECTED }
+                if (!anyConnected && _lastEffectSendOk.value) _lastEffectSendOk.value = false
+            }
         }
     }
 
