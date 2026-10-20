@@ -141,7 +141,8 @@ private fun TimerCard(
                     .padding(vertical = 2.dp)
             )
 
-            // 周重复 chips（N3：FlowRow 紧凑单行——常规 7 枚一行，大字自动换行不截字）
+            // 周重复 chips（N3：FlowRow 紧凑单行——常规 7 枚一行，大字自动换行不截字；
+            // 禁用 M3 48dp 最小触区强制，否则 41dp 胶囊被撑宽致 6+1 折行）
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -206,28 +207,30 @@ private fun TimerCard(
     }
 }
 
-/** 紧凑周 chip（N3）：FilterChip 自带 padding 过宽（~79dp/枚，7 枚必折行），自绘胶囊保证单行 */
-@OptIn(ExperimentalMaterial3Api::class)
+/** 紧凑周 chip（N3）：FilterChip/Surface(onClick) 均被 M3 48dp 最小尺寸撑宽（6+1 折行），
+ *  用无 onClick 的 Surface + foundation clickable（无最小尺寸强制）保证 7 枚单行 */
 @Composable
 private fun WeekChip(label: String, selected: Boolean, onTap: () -> Unit) {
     Surface(
-        onClick = onTap,
         shape = RoundedCornerShape(10.dp),
         color = if (selected) MaterialTheme.colorScheme.primary
         else MaterialTheme.colorScheme.surface,
         contentColor = if (selected) MaterialTheme.colorScheme.onPrimary
         else MaterialTheme.colorScheme.onSurfaceVariant,
         border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
-        modifier = Modifier.semantics {
-            role = Role.Checkbox
-            this.selected = selected
-            contentDescription = "周${label}${if (selected) "（已选中）" else ""}"
-        }
+        modifier = Modifier
+            .clip(RoundedCornerShape(10.dp))
+            .clickable(onClick = onTap)
+            .semantics {
+                role = Role.Checkbox
+                this.selected = selected
+                contentDescription = "周${label}${if (selected) "（已选中）" else ""}"
+            }
     ) {
         Text(
             label,
             style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp)
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
         )
     }
 }
