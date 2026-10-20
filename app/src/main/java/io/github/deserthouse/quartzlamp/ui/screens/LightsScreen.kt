@@ -370,20 +370,42 @@ internal fun hintColors(name: String): List<Color> {
 }
 
 @Composable
-private fun HintBar(name: String, modifier: Modifier) {
-    val colors = hintColors(name)
-    val hasDot = name.contains("点、")
+private fun HintBar(name: String, tab: Int, modifier: Modifier) {
+    // N7：按二级分类校准——点前缀色从渐变中剥离为独立点；双色=底色+前景块（无渐变）；
+    // 坏项（纯色）单色静态=真机行为的准确展示
+    val dotPrefix = Effects.dotPrefixOf(name)
+    val baseName = if (dotPrefix != null) name.removePrefix(dotPrefix) else name
+    val dotColor = when {
+        dotPrefix?.startsWith("白点") == true -> singleColorMap['白']!!
+        dotPrefix?.startsWith("红点") == true -> singleColorMap['红']!!
+        else -> null
+    }
+    val cat = Effects.subCatOf(tab, name)
+    val colors = hintColors(baseName)
     Canvas(modifier.height(10.dp).clip(RoundedCornerShape(5.dp))) {
-        drawRect(
-            brush = if (colors.size == 1) Brush.horizontalGradient(listOf(colors[0], colors[0]))
-            else Brush.horizontalGradient(colors),
-            size = size
-        )
-        if (hasDot) {
-            drawCircle(
-                Color.White, radius = size.height * 0.55f,
-                center = Offset(size.width * 0.25f, size.height / 2)
-            )
+        when (cat) {
+            Effects.SubCat.DUO -> {
+                drawRect(colors[0]) // 底色满幅
+                if (colors.size > 1) {
+                    val blockW = size.width * 0.45f
+                    drawRect(
+                        colors[1],
+                        topLeft = Offset((size.width - blockW) / 2f, 0f),
+                        size = Size(blockW, size.height)
+                    )
+                }
+            }
+            Effects.SubCat.RAINBOW -> drawRect(Brush.horizontalGradient(rainbow))
+            Effects.SubCat.MONO_GRAD, Effects.SubCat.COLOR_GRAD ->
+                drawRect(
+                    brush = if (colors.size == 1) Brush.horizontalGradient(listOf(colors[0], colors[0]))
+                    else Brush.horizontalGradient(colors),
+                    size = size
+                )
+            else -> drawRect(colors[0]) // 单色/纯色（坏）：名称单色静态
+        }
+        dotColor?.let { dc ->
+            drawCircle(dc, radius = size.height * 0.32f, center = Offset(size.width * 0.22f, size.height / 2))
         }
     }
 }
@@ -443,7 +465,7 @@ private fun EffectPane(vm: AppViewModel) {
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        HintBar(Effects.nameOf(mode.selected), Modifier.weight(1f))
+                        HintBar(Effects.nameOf(mode.selected), tab, Modifier.weight(1f))
                         Text("示意", style = MaterialTheme.typography.labelMedium)
                     }
                 }
@@ -530,6 +552,7 @@ private fun EffectPane(vm: AppViewModel) {
                         EffectCard(
                             name = name,
                             selected = selected,
+                            tab = tab,
                             modifier = Modifier.weight(1f)
                         ) { vm.selectEffect(tab, pos, deviceIndex) }
                     }
@@ -541,7 +564,7 @@ private fun EffectPane(vm: AppViewModel) {
 }
 
 @Composable
-private fun EffectCard(name: String, selected: Boolean, modifier: Modifier, onTap: () -> Unit) {
+private fun EffectCard(name: String, selected: Boolean, tab: Int, modifier: Modifier, onTap: () -> Unit) {
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = if (selected) MaterialTheme.colorScheme.primaryContainer
@@ -576,7 +599,7 @@ private fun EffectCard(name: String, selected: Boolean, modifier: Modifier, onTa
                     )
                 }
             }
-            HintBar(name, Modifier.fillMaxWidth())
+            HintBar(name, tab, Modifier.fillMaxWidth())
         }
     }
 }

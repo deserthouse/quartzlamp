@@ -60,6 +60,9 @@ object Effects {
     private const val ATOMS = "蓝紫红黄绿青白"
     private val DOT_PREFIXES = listOf("白点滚动、", "红点滚动、", "白点跑动、", "红点跑动、", "白点、", "红点、")
 
+    /** 点前缀（白点滚动、/红点、…）：命中返回前缀本身，否则 null（N7 示意条点色渲染用） */
+    fun dotPrefixOf(name: String): String? = DOT_PREFIXES.firstOrNull { name.startsWith(it) }
+
     fun subCatOf(tab: Int, name: String): SubCat {
         var core = name
         for (p in DOT_PREFIXES) if (core.startsWith(p)) { core = core.substring(p.length); break }
