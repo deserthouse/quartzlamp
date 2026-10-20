@@ -52,4 +52,17 @@ class SessionReadyTest {
         val after = lamp.sentFrames.count { it.startsWith("BC0F") }
         assertEquals("扫描起停不应写拾音配置（AV04-08）", before, after)
     }
+
+    @Test fun `连接与扫描登记knownLamps且断开不清除`() {
+        val lamp = TestLampConnection()
+        val vm = AppViewModel(lamp)
+        vm.connect(ScannedLamp("A", "AA:BB", -50)) // 登记发生在 VM.connect（AV04-05）
+        lamp.scanned.value = listOf(ScannedLamp("B", "CC:DD", -60))
+        Thread.sleep(100)
+        assertEquals("A", vm.knownLamps.value["AA:BB"]?.name)
+        assertEquals("B", vm.knownLamps.value["CC:DD"]?.name)
+        lamp.disconnect("AA:BB")
+        // AV04-05：断开/重扫清空不得抹掉登记——会话行身份依赖它
+        assertEquals("断开不清除登记", "A", vm.knownLamps.value["AA:BB"]?.name)
+    }
 }

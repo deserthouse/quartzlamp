@@ -7,6 +7,9 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.Settings
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -14,6 +17,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -57,7 +62,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import io.github.deserthouse.quartzlamp.ble.ConnState
 import io.github.deserthouse.quartzlamp.ble.ScannedLamp
 import io.github.deserthouse.quartzlamp.ble.SessionState
@@ -78,6 +87,7 @@ fun DeviceScreen(vm: AppViewModel) {
     val scanned by vm.scanned.collectAsState()
     val sessions by vm.sessions.collectAsState()
     val scanning by vm.scanning.collectAsState()
+    val known by vm.knownLamps.collectAsState()
 
     val needed = remember {
         listOf(
@@ -90,9 +100,41 @@ fun DeviceScreen(vm: AppViewModel) {
             ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
         })
     }
+    // AV04-07：永久拒绝态（系统框不再弹出）需独立入口——"授权蓝牙"按钮此时已无效
+    var permanentlyDenied by remember { mutableStateOf(false) }
     val permLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions()
-    ) { map -> granted = map.values.all { it } }
+    ) { map ->
+        granted = map.values.all { it }
+        permanentlyDenied = !granted && needed.any {
+            ContextCompat.checkSelfPermission(context, it) != PackageManager.PERMISSION_GRANTED &&
+                !ActivityCompat.shouldShowRequestPermissionRationale(context as ComponentActivity, it)
+        }
+    }
+
+    // 回前台重检权限态（从系统设置授权返回时自动恢复）
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val obs = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                granted = needed.all {
+                    ContextCompat.checkSelfPermission(context, it) == PackageManager.PERMISSION_GRANTED
+                }
+                if (granted) permanentlyDenied = false
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(obs)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
+    }
+
+    val openAppSettings = {
+        context.startActivity(
+            Intent(
+                Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                Uri.fromParts("package", context.packageName, null)
+            )
+        )
+    }
 
     // 蓝牙开关态（系统开关变化实时反映）
     var btOn by remember { mutableStateOf(bluetoothEnabled(context)) }
@@ -120,11 +162,14 @@ fun DeviceScreen(vm: AppViewModel) {
             vm = vm,
             scanning = scanning,
             granted = granted,
+            permanentlyDenied = permanentlyDenied,
             btOn = btOn,
             sessions = sessions,
             scanned = scanned,
+            known = known,
             onPermRequest = { permLauncher.launch(needed.toTypedArray()) },
-            onEnableBt = { enableBtLauncher.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)) }
+            onEnableBt = { enableBtLauncher.launch(Intent(BluetoothAdapter.ACTION_REQUEST_ENABLE)) },
+            onOpenAppSettings = openAppSettings
         )
         LampTuningCard(vm)
         Spacer(Modifier.height(8.dp))
@@ -201,11 +246,14 @@ private fun ConnectionCard(
     vm: AppViewModel,
     scanning: Boolean,
     granted: Boolean,
+    permanentlyDenied: Boolean,
     btOn: Boolean,
     sessions: Map<String, SessionState>,
     scanned: List<io.github.deserthouse.quartzlamp.ble.ScannedLamp>,
+    known: Map<String, ScannedLamp>,
     onPermRequest: () -> Unit,
-    onEnableBt: () -> Unit
+    onEnableBt: () -> Unit,
+    onOpenAppSettings: () -> Unit
 ) {
     Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceVariant) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -215,7 +263,12 @@ private fun ConnectionCard(
                     CircularProgressIndicator(Modifier.padding(end = 12.dp).size(20.dp))
                 }
                 if (!granted) {
-                    Button(onClick = onPermRequest) { Text("授权蓝牙") }
+                    if (permanentlyDenied) {
+                        // AV04-07：永久拒绝下系统框不再出现，改走应用设置页
+                        Button(onClick = onOpenAppSettings) { Text("前往设置开启") }
+                    } else {
+                        Button(onClick = onPermRequest) { Text("授权蓝牙") }
+                    }
                 } else if (scanning) {
                     TextButton(onClick = vm::stopScan) { Text("停止") }
                 } else {
@@ -228,6 +281,14 @@ private fun ConnectionCard(
                     "演示模式",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.tertiary
+                )
+            }
+
+            if (!granted && permanentlyDenied) {
+                Text(
+                    "蓝牙权限已被拒绝且系统不再弹窗，请前往系统设置 → 应用权限手动开启",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error
                 )
             }
 
@@ -250,10 +311,12 @@ private fun ConnectionCard(
                 }
             }
 
-            // R20-07：discovered ∪ sessions 合并——已连接/连接中设备不因重新扫描消失
+            // R20-07：discovered ∪ sessions 合并——已连接/连接中设备不因重新扫描消失；
+            // AV04-05：身份优先取 knownLamps 登记（重扫清空 discovered 的瞬间不再显示占位名/伪 RSSI）
             val mergedDevices = (scanned.map { it.mac }.toSet() + sessions.keys)
                 .map { mac ->
-                    val lamp = scanned.firstOrNull { it.mac == mac }
+                    val lamp = known[mac]
+                        ?: scanned.firstOrNull { it.mac == mac }
                         ?: ScannedLamp(mac.take(5) + "…", mac, Int.MIN_VALUE)
                     lamp to (sessions[mac] ?: SessionState.DISCONNECTED)
                 }
@@ -286,7 +349,9 @@ private fun ConnectionCard(
                                     else MaterialTheme.colorScheme.onSurface
                                 )
                                 Text(
-                                    "${lamp.mac} · ${lamp.rssi} dBm",
+                                    // AV04-05：无测量值（占位 fallback）不得伪装成 -2147483648 dBm
+                                    if (lamp.rssi != Int.MIN_VALUE) "${lamp.mac} · ${lamp.rssi} dBm"
+                                    else "${lamp.mac} · 信号待更新",
                                     style = MaterialTheme.typography.labelMedium,
                                     color = if (connected) MaterialTheme.colorScheme.onSecondaryContainer
                                     else MaterialTheme.colorScheme.onSurfaceVariant
@@ -296,17 +361,10 @@ private fun ConnectionCard(
                                 SessionState.CONNECTED ->
                                     TextButton(onClick = { vm.disconnect(lamp.mac) }) { Text("断开") }
                                 SessionState.CONNECTING ->
-                                    Text(
-                                        "连接中…",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        modifier = Modifier.padding(start = 8.dp)
-                                    )
+                                    // AV04-05：连接中/重连中提供按 MAC 的取消动作（此前无入口）
+                                    TextButton(onClick = { vm.disconnect(lamp.mac) }) { Text("取消") }
                                 SessionState.RECONNECTING ->
-                                    Text(
-                                        "重连中…",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        modifier = Modifier.padding(start = 8.dp)
-                                    )
+                                    TextButton(onClick = { vm.disconnect(lamp.mac) }) { Text("取消") }
                                 SessionState.DISCONNECTED ->
                                     TextButton(onClick = { vm.connect(lamp) }) { Text("连接") }
                             }
@@ -330,6 +388,7 @@ private fun ConnectionCard(
 private val micTypeNames = listOf("经典", "迪斯科", "动感", "柔和")
 private val micTypeValues = listOf(1, 4, 3, 2) // 经典=1 迪斯科=4 动感=3 柔和=2（mic$2 开关表实证）
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun LampTuningCard(vm: AppViewModel) {
     val mic by vm.mic.collectAsState()
@@ -341,26 +400,33 @@ private fun LampTuningCard(vm: AppViewModel) {
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            // AV04-06：FlowRow+胶囊形——大字下"迪斯科"完整显示，不再被 CircleShape 裁成异形椭圆
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
                 micTypeNames.forEachIndexed { i, name ->
                     val value = micTypeValues[i]
                     val selected = mic.type == value
                     Surface(
-                        shape = CircleShape,
+                        shape = RoundedCornerShape(24.dp),
                         color = if (selected) MaterialTheme.colorScheme.primary
                         else MaterialTheme.colorScheme.surface,
                         contentColor = if (selected) MaterialTheme.colorScheme.onPrimary
                         else MaterialTheme.colorScheme.onSurface,
                         modifier = Modifier
-                            .weight(1f)
+                            .padding(vertical = 2.dp)
                             .heightIn(min = 48.dp)
-                            .clip(CircleShape)
+                            .clip(RoundedCornerShape(24.dp))
                             .semantics {
                                 contentDescription = "拾音类型 $name${if (selected) "（已选中）" else ""}"
                             }
                             .clickable { vm.setMicType(value) }
                     ) {
-                        Box(contentAlignment = Alignment.Center) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.padding(horizontal = 20.dp)
+                        ) {
                             Text(name, style = MaterialTheme.typography.labelLarge)
                         }
                     }

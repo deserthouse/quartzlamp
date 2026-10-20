@@ -36,8 +36,19 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
 
     fun startScan() = lamp.startScan()
     fun stopScan() = lamp.stopScan()
-    fun connect(l: ScannedLamp) = lamp.connect(l)
     fun disconnect(mac: String) = lamp.disconnect(mac)
+
+    /**
+     * 已知灯登记（AV04-05）：扫描结果/连接时登记，断开与重扫不清除——
+     * 重扫清空 discovered 的瞬间，会话行仍能显示真实名称而非占位符/伪 RSSI。
+     */
+    private val _knownLamps = MutableStateFlow<Map<String, ScannedLamp>>(emptyMap())
+    val knownLamps: StateFlow<Map<String, ScannedLamp>> = _knownLamps
+
+    fun connect(l: ScannedLamp) {
+        _knownLamps.update { it + (l.mac to l) }
+        lamp.connect(l)
+    }
 
     // ━━━ 电源 ━━━
     private val _powerOn = MutableStateFlow(true)
@@ -319,6 +330,11 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
     // 必须放在全部业务属性声明之后：Kotlin 按声明序初始化，此 init 启动的收集器可能
     // 同步读到 _mic（构造期已连接 + 同步 send 返回路径）。此前置版本是实机 NPE 根因。
     init {
+        viewModelScope.launch {
+            lamp.scanned.collect { list ->
+                _knownLamps.update { it + list.associateBy(ScannedLamp::mac) }
+            }
+        }
         viewModelScope.launch {
             lamp.sessionReady.collect { /* mac -> */ applyLampPickupFrames() }
         }
