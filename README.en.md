@@ -2,6 +2,11 @@
 
 [中文](README.md) · **English**
 
+<p align="center">
+  <img src="docs/img/icon_light.png" width="128" alt="QuartzLamp icon (day)" />
+  <img src="docs/img/icon_dark.png" width="128" alt="QuartzLamp icon (night)" />
+</p>
+
 An unofficial Material 3 Expressive Android controller for the Lenze Tech
 sound-reactive lamp ("拾音灯"), rebuilt from scratch.
 
@@ -58,6 +63,7 @@ Release signing reads `~/.gradle/gradle.properties` (four `QUARTZLAMP_*` keys);
 - Provided as-is, without warranty of any kind; use at your own risk. BLE commands target
   this lamp hardware only.
   软件按"现状"提供，使用后果自负；BLE 指令仅面向该拾音灯硬件。
+- Icon credit: Icon artwork based on Twemoji by Twitter, Inc. and other contributors (CC-BY 4.0).
 
 ---
 

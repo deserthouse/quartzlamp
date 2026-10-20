@@ -2,6 +2,11 @@
 
 **中文** · [English](README.en.md)
 
+<p align="center">
+  <img src="docs/img/icon_light.png" width="128" alt="QuartzLamp 图标（昼）" />
+  <img src="docs/img/icon_dark.png" width="128" alt="QuartzLamp 图标（夜）" />
+</p>
+
 Lenze Tech「拾音灯」硬件的自有 Android 控制器——Material 3 Expressive 重制版。
 
 ## 功能（三 tab：设备 / 灯光 / 定时）
@@ -52,6 +57,7 @@ Release 签名凭据走 `~/.gradle/gradle.properties`（QUARTZLAMP_* 四键）�
 - 软件按"现状"提供，使用后果自负；BLE 指令仅面向该拾音灯硬件。
   Provided as-is, without warranty of any kind; use at your own risk. BLE commands target
   this lamp hardware only.
+- 图标署名：Icon artwork based on Twemoji by Twitter, Inc. and other contributors (CC-BY 4.0)。
 
 ---
 
