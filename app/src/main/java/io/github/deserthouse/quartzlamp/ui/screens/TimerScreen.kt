@@ -84,7 +84,7 @@ fun TimerScreen(vm: AppViewModel) {
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(16.dp)) // W-R2：滚动列尾余量
     }
 }
 

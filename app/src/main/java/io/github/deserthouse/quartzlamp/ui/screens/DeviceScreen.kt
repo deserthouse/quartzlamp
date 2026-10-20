@@ -172,7 +172,7 @@ fun DeviceScreen(vm: AppViewModel) {
             onOpenAppSettings = openAppSettings
         )
         LampTuningCard(vm)
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(16.dp)) // W-R2：滚动列尾余量
     }
 }
 

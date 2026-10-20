@@ -211,7 +211,7 @@ private fun StaticPane(vm: AppViewModel) {
                 }
             }
         }
-        Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(16.dp)) // W-R2：滚动列尾余量
     }
 }
 
@@ -494,7 +494,8 @@ private fun EffectPane(vm: AppViewModel) {
             }
         }
 
-        // 分类 pills
+        // 分类 pills（W-R2：尾缘渐隐提示可横滚，消除右缘半枚截断观感）
+        Box {
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier
@@ -520,6 +521,18 @@ private fun EffectPane(vm: AppViewModel) {
                     )
                 }
             }
+        }
+        // 尾缘渐隐层（matchParentSize 贴合 pills 行）
+        Box(
+            Modifier
+                .matchParentSize()
+                .background(
+                    Brush.horizontalGradient(
+                        0f to Color.Transparent,
+                        1f to MaterialTheme.colorScheme.background
+                    )
+                )
+        )
         }
 
         // 双列网格（N5：tab 内二级分组——显示重排，卡片发固有 deviceIndex，帧值零变动）
@@ -560,6 +573,8 @@ private fun EffectPane(vm: AppViewModel) {
                 }
             }
         }
+
+        Spacer(Modifier.height(16.dp)) // W-R2：滚动列尾余量（底栏呼吸，四页统一）
     }
 }
 
