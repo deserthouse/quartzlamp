@@ -51,12 +51,14 @@ object LampFrames {
     /** 帧#5 速度（byte[2]=01，mode$1:0050-0056 实证）；
      *  quandengMode（当前浏览分类=全灯）时上限 70（mode$1:003a-0042 为 min(v,70)）。
      *  flag 按当前 tab 重估是厂商语义：mode$4.onTabSelected 各分支汇合点 01d9 统一重估，见 ble_protocol.md §2.1。 */
-    fun speed(v: Int, quandengMode: Boolean = false): ByteArray =
-        byteArrayOf(
+    fun speed(v: Int, quandengMode: Boolean = false): ByteArray {
+        require(v in 0..100) { "speed out of range: $v" }
+        return byteArrayOf(
             0xBC.toByte(), 0x08, 0x01,
             (if (quandengMode) v.coerceAtMost(70) else v).toByte(),
             0x55
         )
+    }
 
     /** 帧#6 律动变色（麦/音乐实时 HSV）——大端 16 位 /255 */
     fun reactiveColor(h: Int, s: Float): ByteArray {
@@ -70,8 +72,10 @@ object LampFrames {
     }
 
     /** 帧#7 灵敏度（模式页；byte[2]=01，mode$2:003e-0044 实证） */
-    fun sensitivity(v: Int): ByteArray =
-        bc5(0x10, 0x01, v)
+    fun sensitivity(v: Int): ByteArray {
+        require(v in 0..100) { "sensitivity out of range: $v" }
+        return bc5(0x10, 0x01, v)
+    }
 
     /** 帧#8 拾音源：手机麦=01、灯载麦=00（mic$1 array@0x5e=BC0F0101↔rb_mic_phone=0x7F09014F、
      *  array@0x66=BC0F0100↔rb_mic_device=0x7F09014E，aapt2 资源表实证） */
@@ -86,8 +90,10 @@ object LampFrames {
     }
 
     /** 帧#10 拾音灵敏度（byte[2]=01，mic$3:0017-001b 实证） */
-    fun micSensitivity(v: Int): ByteArray =
-        bc5(0x12, 0x01, v)
+    fun micSensitivity(v: Int): ByteArray {
+        require(v in 0..100) { "mic sensitivity out of range: $v" }
+        return bc5(0x12, 0x01, v)
+    }
 
     // ━━━ 7E 族（头 0x7E 尾 0xEF，9 字节）━━━
 
@@ -99,13 +105,16 @@ object LampFrames {
     )
 
     /** 帧#12 定时设置（hour 24 小时制；open=true 开灯定时；weekBits bit0=周一） */
-    fun timerSet(hour: Int, minute: Int, open: Boolean, weekBits: Int): ByteArray = byteArrayOf(
+    fun timerSet(hour: Int, minute: Int, open: Boolean, weekBits: Int): ByteArray {
+        require(hour in 0..23 && minute in 0..59) { "time out of range: $hour:$minute" }
+        return byteArrayOf(
         0x7E, 0x08, 0x82.toByte(),
         hour.toByte(), minute.toByte(), 0,
         if (open) 0 else 1,
         weekBits.toByte(),
         0xEF.toByte()
     )
+    }
 
     /** 帧#13 定时查询（发送后 GATT read 读回） */
     fun timerQuery(open: Boolean): ByteArray = byteArrayOf(

@@ -142,13 +142,7 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
 
     fun setColor(hue: Int, sat: Float, send: Boolean = true) {
         _color.value = _color.value.copy(hue = hue, sat = sat)
-        if (send) fire {
-            when (lamp.send(LampFrames.colorStatic(hue, sat))) {
-                SendResult.SentToAll, SendResult.SentToSome ->
-                    _lampMode.value = LampMode.Static(hue, sat) // 投递成功才认单色模式（R20-03）
-                else -> {} // NoTarget/Failed：保留原模式判断，不虚报
-            }
-        }
+        if (send) commitColor() // CR-9：单一路径——提交读 VM 当前值，语义与色环/滑杆一致
     }
 
     /**
@@ -197,7 +191,7 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
      */
     fun sendSpeed() {
         val selectedCategory = (_mode.value.selected - 1) / 17
-        fire { lamp.send(LampFrames.speed(_mode.value.speed, selectedCategory == 8)) }
+        fire { lamp.send(LampFrames.speed(_mode.value.speed.coerceIn(0, 100), selectedCategory == 8)) }
     }
 
     fun updateSensitivity(v: Int) {
@@ -205,7 +199,7 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
     }
 
     fun sendSensitivity() =
-        fire { lamp.send(LampFrames.sensitivity(_mode.value.sensitivity)) }
+        fire { lamp.send(LampFrames.sensitivity(_mode.value.sensitivity.coerceIn(0, 100))) }
 
     fun setMicType(value: Int) {
         _mic.update { it.copy(type = value) }
@@ -225,7 +219,7 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
     fun applyLampPickupFrames() = fire {
         lamp.send(LampFrames.micSource(false))
         lamp.send(LampFrames.micType(_mic.value.type))
-        lamp.send(LampFrames.micSensitivity(_mic.value.sensitivity))
+        lamp.send(LampFrames.micSensitivity(_mic.value.sensitivity.coerceIn(0, 100)))
     }
 
     // ━━━ 定时：槽位编辑/保存/读取（全部 update{} 原子改） ━━━
@@ -292,6 +286,7 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
                             hour = info.hour,
                             minute = info.minute,
                             weeks = List(7) { i -> info.weekEnabled(i) },
+                            revision = s.revision + 1, // CR-10：读回重建保持 revision 单调
                             loaded = true,
                             readFrom = target
                         )
@@ -303,8 +298,9 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
 
     /** 进定时页即对时（厂商 timer.initView 同构，P0 审计补强）；帧历时间为 Calendar 现取 */
     fun syncClock() {
-        val c = java.util.Calendar.getInstance()
         fire {
+            // 取时在发送时现取（CR-8）：BLE 队列忙时调用与发送可差秒级，定时时钟不预取
+            val c = java.util.Calendar.getInstance()
             lamp.send(
                 LampFrames.timeSync(
                     c.get(java.util.Calendar.HOUR_OF_DAY), c.get(java.util.Calendar.MINUTE),

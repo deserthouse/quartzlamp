@@ -26,10 +26,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
-import androidx.navigation.compose.rememberNavController
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Lightbulb
 import androidx.compose.material.icons.outlined.Bluetooth
@@ -95,8 +91,7 @@ private fun MainScaffold(vm: AppViewModel) {
                 title = { Text("拾音灯 · $connLabel") },
                 actions = {
                     IconButton(
-                        onClick = { nav.navigate("settings") { launchSingleTop = true } },
-                        modifier = Modifier.padding(end = 12.dp)
+                        onClick = { nav.navigate("settings") { launchSingleTop = true } }
                     ) {
                         Icon(Icons.Filled.Settings, contentDescription = "设置")
                     }

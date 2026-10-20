@@ -18,6 +18,21 @@ class LampFramesTest {
 
     private fun h(vararg ints: Int) = ints.map { it.toByte() }.toByteArray()
 
+    // CR-7：防御对称性——越界 require，边界值正常成帧
+    @Test(expected = IllegalArgumentException::class) fun `速度越界拒绝`() { LampFrames.speed(101) }
+    @Test(expected = IllegalArgumentException::class) fun `速度负值拒绝`() { LampFrames.speed(-1) }
+    @Test(expected = IllegalArgumentException::class) fun `灵敏度越界拒绝`() { LampFrames.sensitivity(101) }
+    @Test(expected = IllegalArgumentException::class) fun `拾音灵敏度负值拒绝`() { LampFrames.micSensitivity(-1) }
+    @Test(expected = IllegalArgumentException::class) fun `定时小时越界拒绝`() { LampFrames.timerSet(24, 0, true, 0) }
+    @Test(expected = IllegalArgumentException::class) fun `定时分钟越界拒绝`() { LampFrames.timerSet(7, 60, true, 0) }
+
+    @Test fun `域校验_边界通过`() {
+        LampFrames.speed(0); LampFrames.speed(100)
+        LampFrames.sensitivity(0); LampFrames.sensitivity(100)
+        LampFrames.micSensitivity(0); LampFrames.micSensitivity(100)
+        LampFrames.timerSet(0, 0, true, 0); LampFrames.timerSet(23, 59, false, 0x7F)
+    }
+
     @Test fun `帧1 电源开`() = assertArrayEquals(h(0xBC, 0x01, 0x01, 0x01, 0x55), LampFrames.power(true))
 
     @Test fun `帧1 电源关`() = assertArrayEquals(h(0xBC, 0x01, 0x01, 0x00, 0x55), LampFrames.power(false))
