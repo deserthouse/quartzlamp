@@ -1,7 +1,17 @@
 # quartzlamp — 拾音灯控制器重建项目
 
 > 状态文件：本文件是唯一状态源（架构/功能/TODO/文件拓扑），阶段完成后原地更新。
-> 创建：2026-10-15 · 当前阶段：**真灯终验已过（用户 2026-10-21 确认）；M1-M4 合并收尾中（亮度百分比+图标接入+About 资源化→0.4.2(6)）→ 用户过目 → tag v0.4.2 + GitHub Release**
+> 创建：2026-10-15 · 当前阶段：**M1-M4 合并收尾收官（0.4.2(6) 出包）；待用户过目（重点 launcher 图标观感）→ tag v0.4.2 + GitHub Release**
+>
+> **2026-10-21 M1-M4 收官（工作单 docs/workorder_merge_2026-10-21.md，本地）**：
+> 1e899a2 亮度百分比（60%↔帧 437 端到端实测）/ 06efb74 绿鸠图标接入（安全区 0.94 缩放
+> PIL 门禁+adaptive 位图+themed+README 双语挂图+NOTICE.md 署名+关于页 CC-BY 行）/
+> ca665cc About 接 app_name_en（baseline 挂账清零，含 M2 修复的 Monochrome 陈旧条目）/
+> M4 出包。真灯终验用户已确认通过；"断电不丢"文案保留原样（A5 探针后议）。
+> **0.4.2(6)=2026-10-21 01:21:34 / MD5 fe0aaf97c8a428dcb4ed0a362279e04e / SHA-256 前缀
+> 38d375fd**；单测 72/0、lint 双 0、V2 验签、Fake=0；AVD 抽验：冷启设备 tab/亮度 60%/
+> launcher 绿鸠圆形蒙版完整/关于页 v0.4.2+CC-BY/深色可读；样张 tests/screens/M_*。
+> 尾声：v0.4.1 不补 tag；发布=tag v0.4.2+GitHub Release（双语 notes+AI 声明+免责，§六.8）。
 >
 > **2026-10-21 R21 收官**：AV04 整改（工作单 `docs/workorder_r21_2026-10-20.md`）全部完成——
 > F1-1 构造期 NPE 根除+每灯 sessionReady 初始化（a2a0fd3）/ F1-3 定时互斥阶段模型（ea05e68）/
