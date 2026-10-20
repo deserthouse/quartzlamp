@@ -21,6 +21,10 @@ class TestLampConnection : LampConnection {
     override val frameHistory = MutableStateFlow<List<String>>(emptyList())
     override val sessions = MutableStateFlow<Map<String, SessionState>>(emptyMap())
 
+    /** 会话就绪事件（AV04-08）：connect() 同步发出（构造期同步路径的可测面） */
+    private val _sessionReady = MutableSharedFlow<String>(extraBufferCapacity = 16)
+    override val sessionReady: SharedFlow<String> = _sessionReady
+
     val sentFrames = mutableListOf<String>()
     /** queryTimer(open) → 返回字节（null=读失败） */
     var timerRead: (Boolean) -> ByteArray? = { null }
@@ -29,6 +33,7 @@ class TestLampConnection : LampConnection {
     override fun stopScan() {}
     override fun connect(lamp: ScannedLamp) {
         sessions.value = sessions.value + (lamp.mac to SessionState.CONNECTED)
+        _sessionReady.tryEmit(lamp.mac)
     }
 
     override fun disconnect(mac: String) {

@@ -7,6 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -45,6 +46,10 @@ class FakeLampConnection : LampConnection {
     private val history = ArrayDeque<String>()
     private val _sessions = MutableStateFlow<Map<String, SessionState>>(emptyMap())
     override val sessions: StateFlow<Map<String, SessionState>> = _sessions
+
+    /** 会话就绪事件（AV04-08，与真实实现同语义：连接完成即发） */
+    private val _sessionReady = MutableSharedFlow<String>(extraBufferCapacity = 16)
+    override val sessionReady: SharedFlow<String> = _sessionReady
 
     /** 两台假灯：多灯并存/断 A 不影响 B 的可测性 */
     val fakeLamps = listOf(
@@ -105,6 +110,7 @@ class FakeLampConnection : LampConnection {
         connectJobsByMac[lamp.mac] = scope.launch {
             delay(connectDelayMs)
             _sessions.update { it + (lamp.mac to SessionState.CONNECTED) }
+            _sessionReady.tryEmit(lamp.mac) // AV04-08：连接完成即发（每灯独立）
             val c = java.util.Calendar.getInstance()
             send(
                 LampFrames.timeSync(

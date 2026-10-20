@@ -55,6 +55,12 @@ interface LampConnection {
     /** 演示模式（假灯）标记；UI 显示徽标，release 实现恒 false（F11） */
     val isDemo: Boolean get() = false
 
+    /**
+     * 会话就绪事件（AV04-08）：连接成功且初始化序列（notify→对时）已排队时发出该 MAC。
+     * 每灯独立触发——第二盏接入也会发；扫描起停不产生此事件。
+     */
+    val sessionReady: SharedFlow<String>
+
     fun startScan()
     fun stopScan()
 

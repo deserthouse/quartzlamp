@@ -57,17 +57,9 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
     private val _lastEffectSendOk = MutableStateFlow(false)
     val lastEffectSendOk: StateFlow<Boolean> = _lastEffectSendOk
 
-    init {
-        // 连接建立瞬间自动激活灯端拾音（R20-04：确保灯载源 00+配置，防旧版遗留手机源）
-        viewModelScope.launch {
-            var prev = false
-            lamp.state.collect { s ->
-                val connected = s == ConnState.CONNECTED
-                if (connected && !prev) applyLampPickupFrames()
-                prev = connected
-            }
-        }
-    }
+    // 注意：不要在类头部放 init 副作用块——Kotlin 属性按声明序初始化，init 先于 _mic 等
+    // 后声明字段执行，已连接+同步返回路径会读未初始化字段直接 NPE（AV04-01 实机崩溃）。
+    // 会话就绪初始化的收集器在类尾部 init 启动（见文件底部）。
 
     /** 发送并按结果更新状态（R20-03：意图≠结果） */
     private fun fire(block: suspend () -> Unit) = viewModelScope.launch { block() }
@@ -291,6 +283,15 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
         var b = 0
         weeks.forEachIndexed { i, on -> if (on) b = b or (1 shl i) }
         return b
+    }
+
+    // ━━━ 会话就绪初始化（AV04-01/08）━━━
+    // 必须放在全部业务属性声明之后：Kotlin 按声明序初始化，此 init 启动的收集器可能
+    // 同步读到 _mic（构造期已连接 + 同步 send 返回路径）。此前置版本是实机 NPE 根因。
+    init {
+        viewModelScope.launch {
+            lamp.sessionReady.collect { /* mac -> */ applyLampPickupFrames() }
+        }
     }
 
     companion object {

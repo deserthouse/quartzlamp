@@ -20,6 +20,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -60,8 +61,13 @@ class FastBleLampConnection(private val app: android.app.Application) : LampConn
     override val frameHistory: StateFlow<List<String>> = _frameHistory
     private val history = ArrayDeque<String>()
 
+    /** 每设备会话状态（mac → state），扫描列表行级操作依据（F07） */
     private val _sessions = MutableStateFlow<Map<String, SessionState>>(emptyMap())
     override val sessions: StateFlow<Map<String, SessionState>> = _sessions
+
+    /** 会话就绪事件（AV04-08） */
+    private val _sessionReady = MutableSharedFlow<String>(extraBufferCapacity = 16)
+    override val sessionReady: SharedFlow<String> = _sessionReady
 
     /** mac → 扫描期见的设备句柄 */
     private val seenDevices = HashMap<String, BleDevice>()
@@ -229,6 +235,8 @@ class FastBleLampConnection(private val app: android.app.Application) : LampConn
                     )
                 }
             }
+            // 会话就绪事件（AV04-08）：每灯独立发出，VM 据此做该设备的拾音初始化
+            _sessionReady.tryEmit(mac)
         }
 
         override fun onDisConnected(
