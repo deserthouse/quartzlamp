@@ -90,19 +90,22 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
      * loaded=灯端读到过有效配置；busy=查询中；error=最近一次读取失败。
      * 无"启用"开关：协议无此位（F05），保存即下发、删除=清空重存、读回空=未设置。
      */
+    /**
+     * 定时本次操作阶段（AV04-03 互斥模型）——历史观测（loaded/readFrom）独立保存，
+     * 不再被旧 error 压制或互相覆盖。
+     */
+    enum class TimerPhase { Idle, Sent, NoTarget, Failed }
+
     data class TimerSlot(
         val hour: Int = 7,
         val minute: Int = 0,
         val weeks: List<Boolean> = List(7) { false },
-        val loaded: Boolean = false,      // 灯端读到过有效配置
         val busy: Boolean = false,        // 读取中
-        val error: Boolean = false,       // 最近一次读取失败
         val dirty: Boolean = false,       // 草稿：编辑过未应用（R19-09）
-        val sent: Boolean = false,        // 已发送未读回确认（无逐灯 ACK，不假成功）
-        val readFrom: String? = null,     // 读取目标灯（多灯时=第一盏）
-        val revision: Long = 0,           // R20-03：草稿修订号，读回结果仅接受同修订
-        val pendingConnection: Boolean = false, // R20-03：无连接暂存
-        val sendFailed: Boolean = false   // R20-03：最近一次应用失败
+        val revision: Long = 0,           // 草稿修订号：读回/保存结果仅接受同修订（R20-03/AV04-03）
+        val phase: TimerPhase = TimerPhase.Idle, // AV04-03：最近一次"应用到灯"的真实结果
+        val loaded: Boolean = false,      // 灯端读到过有效配置（历史观测）
+        val readFrom: String? = null      // 读取目标灯（多灯时=第一盏）
     )
 
     data class TimerUiState(
@@ -125,6 +128,21 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
                 SendResult.SentToAll, SendResult.SentToSome ->
                     _lampMode.value = LampMode.Static(hue, sat) // 投递成功才认单色模式（R20-03）
                 else -> {} // NoTarget/Failed：保留原模式判断，不虚报
+            }
+        }
+    }
+
+    /**
+     * 提交当前颜色（AV04-09）：滑杆松手/色环提交的权威入口——读 VM 当前值发送，
+     * 不从 UI 闭包快照重建状态（快速点按不再把刚更新的值覆盖回旧值）。
+     */
+    fun commitColor() {
+        val c = _color.value
+        fire {
+            when (lamp.send(LampFrames.colorStatic(c.hue, c.sat))) {
+                SendResult.SentToAll, SendResult.SentToSome ->
+                    _lampMode.value = LampMode.Static(c.hue, c.sat)
+                else -> {}
             }
         }
     }
@@ -202,43 +220,55 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
             }
         }
 
-    /** 应用到灯（R20-03 结果驱动）：无连接=待连接保留草稿；投递成功=sent；失败=sendFailed */
+    /** 应用到灯（AV04-03 互斥阶段模型）：结果绑定发起时 revision——等待期间的新编辑不被旧结果置 clean */
     fun saveTimerSlot(openSlot: Boolean) {
         val s = _timer.value.slot(openSlot)
+        val revAtSave = s.revision
         fire {
-            when (lamp.send(LampFrames.timerSet(s.hour, s.minute, openSlot, weekBits(s.weeks)))) {
-                SendResult.SentToAll, SendResult.SentToSome ->
-                    _timer.update { it.withSlot(openSlot) { it.copy(dirty = false, sent = true, sendFailed = false, pendingConnection = false) } }
-                SendResult.NoTarget ->
-                    _timer.update { it.withSlot(openSlot) { it.copy(sent = false, pendingConnection = true) } }
-                else ->
-                    _timer.update { it.withSlot(openSlot) { it.copy(sent = false, sendFailed = true) } }
+            val result = lamp.send(LampFrames.timerSet(s.hour, s.minute, openSlot, weekBits(s.weeks)))
+            _timer.update { cur ->
+                cur.withSlot(openSlot) { slot ->
+                    if (slot.revision != revAtSave) {
+                        // 等待期间有新编辑：只记录投递结果，不动 dirty/草稿
+                        slot.copy(phase = when (result) {
+                            SendResult.SentToAll, SendResult.SentToSome -> TimerPhase.Sent
+                            SendResult.NoTarget -> TimerPhase.NoTarget
+                            else -> TimerPhase.Failed
+                        })
+                    } else when (result) {
+                        SendResult.SentToAll, SendResult.SentToSome ->
+                            slot.copy(dirty = false, phase = TimerPhase.Sent)
+                        SendResult.NoTarget ->
+                            slot.copy(phase = TimerPhase.NoTarget) // 未连接，草稿已保留
+                        else ->
+                            slot.copy(phase = TimerPhase.Failed)
+                    }
+                }
             }
         }
     }
 
     /**
-     * 从灯读取（R19-09 契约）：busy 防重复请求；读取目标=首个已连接灯（名称入 readFrom）；
-     * 空配置清空本槽（关灯槽恢复 23:00 默认而非 7:00）；读取期间的编辑会被读回结果覆盖
-     * （最后观测优先，注释即策略）。
+     * 从灯读取（AV04-03）：busy 防重复；读取目标=首个已连接灯；
+     * 空配置清空本槽（关灯槽恢复 23:00 默认）；读取期间的新编辑（revision 变化）丢弃旧观测；
+     * 读失败记入 phase（互斥阶段，不遮蔽后续保存成功）。
      */
     fun queryTimerSlot(openSlot: Boolean) {
         if (_timer.value.slot(openSlot).busy) return
         val target = connectedLampName()
         val revAtRequest = _timer.value.slot(openSlot).revision
         viewModelScope.launch {
-            _timer.update { it.withSlot(openSlot) { s -> s.copy(busy = true, error = false) } }
+            _timer.update { it.withSlot(openSlot) { s -> s.copy(busy = true) } }
             val info = runCatching { lamp.queryTimer(openSlot) }.getOrNull()
                 ?.let { LampFrames.parseTimerRead(it) }
             _timer.update { cur ->
                 cur.withSlot(openSlot) { s ->
                     when {
-                        // R20-03：读取期间有新编辑（revision 变化）→ 丢弃旧观测，保护新草稿
-                        s.revision != revAtRequest -> s.copy(busy = false)
-                        info == null -> s.copy(busy = false, error = true)
+                        s.revision != revAtRequest -> s.copy(busy = false) // 读取期间有新编辑：丢弃旧观测
+                        info == null -> s.copy(busy = false, phase = TimerPhase.Failed)
                         !info.isSet ->
-                            if (openSlot) TimerSlot()
-                            else TimerSlot(hour = 23, minute = 0) // 关灯槽保留 23 点默认
+                            if (openSlot) TimerSlot(phase = TimerPhase.Idle)
+                            else TimerSlot(hour = 23, minute = 0, phase = TimerPhase.Idle) // 关灯槽保留 23 点默认
                         else -> TimerSlot(
                             hour = info.hour,
                             minute = info.minute,

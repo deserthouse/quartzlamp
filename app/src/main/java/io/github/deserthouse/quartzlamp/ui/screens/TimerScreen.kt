@@ -102,18 +102,22 @@ private fun TimerCard(
                     CircularProgressIndicator(Modifier.padding(end = 10.dp).size(18.dp))
                 }
                 Text(
-                    when {
-                        slot.error -> "读取失败"
-                        slot.dirty -> "草稿未应用"
-                        slot.sent -> "已发送 · 待读回确认"
-                        slot.loaded -> "已从灯读回" + (slot.readFrom?.let { "（$it）" } ?: "")
-                        else -> "未设置"
+                    // AV04-03：互斥阶段优先（本次动作结果），历史观测（loaded）次之，不再互相压制
+                    when (slot.phase) {
+                        AppViewModel.TimerPhase.NoTarget -> "未连接 · 未发送（草稿已保留）"
+                        AppViewModel.TimerPhase.Failed -> "发送/读取失败 · 可重试"
+                        AppViewModel.TimerPhase.Sent -> if (slot.dirty) "草稿未应用" else "已发送 · 待读回确认"
+                        AppViewModel.TimerPhase.Idle ->
+                            if (slot.dirty) "草稿未应用"
+                            else if (slot.loaded) "已从灯读回" + (slot.readFrom?.let { "（$it）" } ?: "")
+                            else "未设置"
                     },
                     style = MaterialTheme.typography.labelMedium,
-                    color = when {
-                        slot.error -> MaterialTheme.colorScheme.error
-                        slot.dirty || slot.loaded -> MaterialTheme.colorScheme.primary
-                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    color = when (slot.phase) {
+                        AppViewModel.TimerPhase.Failed -> MaterialTheme.colorScheme.error
+                        AppViewModel.TimerPhase.NoTarget -> MaterialTheme.colorScheme.tertiary
+                        else -> if (slot.dirty || slot.loaded) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant
                     }
                 )
             }
@@ -129,23 +133,24 @@ private fun TimerCard(
                     .padding(vertical = 2.dp)
             )
 
-            // 周重复 chips（7 枚 weight 均分：411-40=371dp / 7 ≈ 53dp 恰好一行全显）
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                weekLabels.forEachIndexed { i, d ->
-                    FilterChip(
-                        selected = slot.weeks[i],
-                        onClick = {
-                            vm.updateTimerSlot(
-                                open, slot.hour, slot.minute,
-                                slot.weeks.toMutableList().also { it[i] = !it[i] }
+            // 周重复 chips（AV04-06：4+3 两行自适应——大字下不再强制 7 枚均分截字）
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                weekLabels.indices.chunked(4).forEach { rowIdx ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        rowIdx.forEach { i ->
+                            FilterChip(
+                                selected = slot.weeks[i],
+                                onClick = {
+                                    vm.updateTimerSlot(
+                                        open, slot.hour, slot.minute,
+                                        slot.weeks.toMutableList().also { it[i] = !it[i] }
+                                    )
+                                },
+                                label = { Text(weekLabels[i]) },
+                                modifier = Modifier.weight(1f)
                             )
-                        },
-                        label = { Text(d) },
-                        modifier = Modifier.weight(1f)
-                    )
+                        }
+                    }
                 }
             }
 

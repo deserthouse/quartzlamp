@@ -68,13 +68,22 @@ class AppViewModelTimerTest {
         assertEquals("未设置语义下本槽回默认草稿", 7, vm.timer.value.open.hour)
     }
 
-    @Test fun `读取失败置error且不清草稿`() {
+    @Test fun `读取失败置Failed且不清草稿`() {
         vm.updateTimerSlot(true, 9, 45, List(7) { false })
         lamp.timerRead = { null }
         vm.queryTimerSlot(true)
-        assertTrue(vm.timer.value.open.error)
+        assertEquals(AppViewModel.TimerPhase.Failed, vm.timer.value.open.phase)
         assertEquals(9, vm.timer.value.open.hour)
         assertEquals(45, vm.timer.value.open.minute)
+    }
+
+    @Test fun `离线应用置NoTarget草稿保留`() {
+        lamp.disconnect("AA")
+        vm.updateTimerSlot(true, 9, 45, List(7) { false })
+        vm.saveTimerSlot(true)
+        val s = vm.timer.value.open
+        assertEquals(AppViewModel.TimerPhase.NoTarget, s.phase)
+        assertTrue(s.dirty) // 草稿保留，重连后可直接重试
     }
 
     @Test fun `保存即下发无启用位`() {
@@ -101,12 +110,12 @@ class AppViewModelTimerTest {
         assertTrue(t.close.weeks[6]) // 0x40 = 周日
     }
 
-    @Test fun `编辑标草稿_保存置已发送-R19-09`() {
+    @Test fun `编辑标草稿_保存置Sent阶段-R19-09`() {
         vm.updateTimerSlot(true, 9, 45, List(7) { false })
         assertTrue(vm.timer.value.open.dirty)
         vm.saveTimerSlot(true)
         val s = vm.timer.value.open
-        assertTrue(s.sent)
+        assertEquals(AppViewModel.TimerPhase.Sent, s.phase)
         assertFalse(s.dirty)
     }
 
