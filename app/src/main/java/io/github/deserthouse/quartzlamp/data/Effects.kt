@@ -32,4 +32,47 @@ object Effects {
         require(deviceIndex in 1..TOTAL)
         return effects[(deviceIndex - 1) / 17][(deviceIndex - 1) % 17]
     }
+
+    // ━━━ tab 内二级分类（N5，用户分类法；词法推导，索引/帧零涉及）━━━
+
+    /**
+     * 分类法（用户 2026-10-21 依真机观察设计）：
+     * 单色=单词色名（紫/黄/红…）；单色渐变=X+白；彩色渐变=两非白色并列；
+     * 七彩=七彩流水；双色=A 底 B（不带渐变）；纯色=仅第 9 类（全灯滚动）中判坏的
+     * 单色/双色项——用户真机实证仅显示纯色（原厂固件行为，功能保留）。
+     */
+    enum class SubCat { MONO, MONO_GRAD, COLOR_GRAD, RAINBOW, DUO, PURE_BROKEN }
+
+    /** 分组渲染顺序 */
+    val SUB_CAT_ORDER = listOf(
+        SubCat.MONO, SubCat.MONO_GRAD, SubCat.COLOR_GRAD, SubCat.RAINBOW, SubCat.DUO, SubCat.PURE_BROKEN
+    )
+
+    fun subCatLabel(c: SubCat): String = when (c) {
+        SubCat.MONO -> "单色"
+        SubCat.MONO_GRAD -> "单色渐变"
+        SubCat.COLOR_GRAD -> "彩色渐变"
+        SubCat.RAINBOW -> "七彩"
+        SubCat.DUO -> "双色"
+        SubCat.PURE_BROKEN -> "纯色"
+    }
+
+    private const val ATOMS = "蓝紫红黄绿青白"
+    private val DOT_PREFIXES = listOf("白点滚动、", "红点滚动、", "白点跑动、", "红点跑动、", "白点、", "红点、")
+
+    fun subCatOf(tab: Int, name: String): SubCat {
+        var core = name
+        for (p in DOT_PREFIXES) if (core.startsWith(p)) { core = core.substring(p.length); break }
+        for (s in listOf("双向跳动", "跳动", "闭幕")) if (core.endsWith(s)) { core = core.removeSuffix(s); break }
+        if (core.endsWith("色")) core = core.removeSuffix("色")
+        val base = when {
+            core == "七彩流水" || core == "七彩" -> SubCat.RAINBOW
+            '底' in core -> SubCat.DUO
+            core.length == 2 && core.all { it in ATOMS } ->
+                if (core[1] == '白') SubCat.MONO_GRAD else SubCat.COLOR_GRAD
+            core.length == 1 && core[0] in ATOMS -> SubCat.MONO
+            else -> SubCat.COLOR_GRAD // 兜底：153 全量词法验证无未归类项
+        }
+        return if (tab == 8 && (base == SubCat.MONO || base == SubCat.DUO)) SubCat.PURE_BROKEN else base
+    }
 }

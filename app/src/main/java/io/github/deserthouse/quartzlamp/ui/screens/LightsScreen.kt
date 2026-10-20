@@ -500,24 +500,41 @@ private fun EffectPane(vm: AppViewModel) {
             }
         }
 
-        // 双列网格（非懒加载：17 项/页，自然高度——短屏不再归零）
+        // 双列网格（N5：tab 内二级分组——显示重排，卡片发固有 deviceIndex，帧值零变动）
         val items = Effects.effects[tab]
-        items.chunked(2).forEachIndexed { rowIndex, rowItems ->
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                rowItems.forEachIndexed { col, name ->
-                    val pos = rowIndex * 2 + col
-                    val deviceIndex = Effects.deviceIndex(tab, pos)
-                    val selected = mode.selected == deviceIndex
-                    EffectCard(
-                        name = name,
-                        selected = selected,
-                        modifier = Modifier.weight(1f)
-                    ) { vm.selectEffect(tab, pos, deviceIndex) }
+        val groups = Effects.SUB_CAT_ORDER.map { c ->
+            c to items.withIndex().filter { Effects.subCatOf(tab, it.value) == c }
+        }.filter { it.second.isNotEmpty() }
+        groups.forEachIndexed { gi, (cat, members) ->
+            Text(
+                Effects.subCatLabel(cat),
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = if (gi == 0) 0.dp else 4.dp)
+            )
+            if (cat == Effects.SubCat.PURE_BROKEN) {
+                Text(
+                    "以下效果在部分设备上仅显示为纯色（原厂固件自带行为，功能保留）",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            members.chunked(2).forEach { rowItems ->
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    rowItems.forEach { (pos, name) ->
+                        val deviceIndex = Effects.deviceIndex(tab, pos)
+                        val selected = mode.selected == deviceIndex
+                        EffectCard(
+                            name = name,
+                            selected = selected,
+                            modifier = Modifier.weight(1f)
+                        ) { vm.selectEffect(tab, pos, deviceIndex) }
+                    }
+                    if (rowItems.size == 1) Spacer(Modifier.weight(1f)) // 奇数行占位对齐
                 }
-                if (rowItems.size == 1) Spacer(Modifier.weight(1f)) // 奇数行占位对齐
             }
         }
     }
