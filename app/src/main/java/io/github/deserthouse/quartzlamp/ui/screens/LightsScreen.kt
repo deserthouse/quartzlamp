@@ -111,8 +111,12 @@ fun LightsScreen(vm: AppViewModel) {
     val lampMode by vm.lampMode.collectAsState()
     var pane by remember { mutableIntStateOf(if (lampMode is LampMode.Static) 0 else 1) }
 
+    // N4：标题与分段随内容滚动（不再钉顶）——整页单一滚动流
     Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 20.dp)
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         Text("灯光", style = MaterialTheme.typography.headlineLarge)
@@ -157,12 +161,8 @@ fun LightsScreen(vm: AppViewModel) {
 private fun StaticPane(vm: AppViewModel) {
     val color by vm.color.collectAsState()
 
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
+    // N4：滚动上移至 LightsScreen 外层，本 pane 为流式布局
+    Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             HueWheel(
                 hue = color.hue,
@@ -397,14 +397,30 @@ private fun EffectPane(vm: AppViewModel) {
     var tab by remember { mutableIntStateOf(mode.tab) }
     val selectedQuandeng = (mode.selected - 1) / 17 == 8
 
-    // AV04-02：整页可滚动——网格非懒加载（17 项/页），任何屏高度网格不为零；
-    // 控制条随滚动流在网格后，短屏滚到底可达
-    Column(
-        Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
+    // N4：滚动上移至 LightsScreen 外层；控制条上移至分段正下方（用户意见），
+    // 其后=当前效果条→分类→网格
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        // 速度+模式灵敏度控制条
+        Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceVariant) {
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                CompactSlider(
+                    label = "速度",
+                    note = if (selectedQuandeng) "已选全灯类，上限 70" else null,
+                    // AV04-04：显示发送值——限幅时 UI 与帧一致
+                    value = if (selectedQuandeng) mode.speed.coerceAtMost(70) else mode.speed,
+                    onDrag = { vm.updateSpeed(it) },
+                    onRelease = { vm.sendSpeed() }
+                )
+                CompactSlider(
+                    label = "灵敏度",
+                    note = null,
+                    value = mode.sensitivity,
+                    onDrag = { vm.updateSensitivity(it) },
+                    onRelease = { vm.sendSensitivity() }
+                )
+            }
+        }
+
         // 紧凑当前效果条（单行，高度 ~56dp——不再挤占主选择区）
         Surface(
             shape = MaterialTheme.shapes.large,
@@ -501,27 +517,6 @@ private fun EffectPane(vm: AppViewModel) {
                     ) { vm.selectEffect(tab, pos, deviceIndex) }
                 }
                 if (rowItems.size == 1) Spacer(Modifier.weight(1f)) // 奇数行占位对齐
-            }
-        }
-
-        // 控制条（随滚动流；常规屏也在一屏内）
-        Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceVariant) {
-            Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
-                CompactSlider(
-                    label = "速度",
-                    note = if (selectedQuandeng) "已选全灯类，上限 70" else null,
-                    // AV04-04：显示发送值——限幅时 UI 与帧一致
-                    value = if (selectedQuandeng) mode.speed.coerceAtMost(70) else mode.speed,
-                    onDrag = { vm.updateSpeed(it) },
-                    onRelease = { vm.sendSpeed() }
-                )
-                CompactSlider(
-                    label = "灵敏度",
-                    note = null,
-                    value = mode.sensitivity,
-                    onDrag = { vm.updateSensitivity(it) },
-                    onRelease = { vm.sendSensitivity() }
-                )
             }
         }
     }
