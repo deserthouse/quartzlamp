@@ -213,7 +213,7 @@ private fun PowerBrightnessCard(vm: AppViewModel) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Row(verticalAlignment = Alignment.Bottom) {
                     Text(
-                        "${color.bright}",
+                        "${color.bright / 10}%",
                         style = MaterialTheme.typography.displayMedium,
                         color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.weight(1f)
@@ -226,7 +226,8 @@ private fun PowerBrightnessCard(vm: AppViewModel) {
                     onValueChangeFinished = { vm.sendBrightness() },
                     valueRange = 0f..1000f,
                     modifier = Modifier.semantics {
-                        contentDescription = "亮度：当前 ${color.bright}"
+                        // 协议值域 0-1000 不变（BC05），显示层换算百分比
+                        contentDescription = "亮度：当前 ${color.bright / 10}%"
                     }
                 )
             }
