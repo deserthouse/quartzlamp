@@ -11,6 +11,9 @@ import io.github.deserthouse.quartzlamp.ble.ScannedLamp
 import io.github.deserthouse.quartzlamp.ble.SessionState
 import io.github.deserthouse.quartzlamp.protocol.LampFrames
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -68,6 +71,24 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
     private val _lastEffectSendOk = MutableStateFlow(false)
     val lastEffectSendOk: StateFlow<Boolean> = _lastEffectSendOk
 
+    /** S1/R44-04：投递目标快照（发起时冻结的 CONNECTED MAC 集）——null=无有效投递 */
+    private val _effectTargets = MutableStateFlow<Set<String>?>(null)
+
+    /** 电源部分成功披露（S1）：非空=有灯未生效，UI 在电源卡就近显示 */
+    private val _powerIssue = MutableStateFlow<String?>(null)
+    val powerIssue: StateFlow<String?> = _powerIssue
+
+    /**
+     * S1/R44-04：运行中=投递全成功 且 当前连接成员与投递时快照一致——
+     * 成员替换（A 走 B 来）后旧投递证据对新灯无效，徽章回落"已选择"。
+     */
+    val effectRunning: StateFlow<Boolean> = combine(
+        _lastEffectSendOk, _effectTargets, lamp.sessions, _powerOn, _lampMode
+    ) { ok, targets, sessions, power, mode ->
+        ok && targets != null && power && mode is LampMode.Effect &&
+            sessions.filterValues { it == SessionState.CONNECTED }.keys == targets
+    }.stateIn(viewModelScope, kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000), false)
+
     // 注意：不要在类头部放 init 副作用块——Kotlin 属性按声明序初始化，init 先于 _mic 等
     // 后声明字段执行，已连接+同步返回路径会读未初始化字段直接 NPE（AV04-01 实机崩溃）。
     // 会话就绪初始化的收集器在类尾部 init 启动（见文件底部）。
@@ -116,7 +137,8 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
         val revision: Long = 0,           // 草稿修订号：读回/保存结果仅接受同修订（R20-03/AV04-03）
         val phase: TimerPhase = TimerPhase.Idle, // AV04-03：最近一次"应用到灯"的真实结果
         val loaded: Boolean = false,      // 灯端读到过有效配置（历史观测）
-        val readFrom: String? = null      // 读取目标灯（多灯时=第一盏）
+        val readFrom: String? = null,     // 读取目标灯（多灯时=第一盏）
+        val partial: Boolean = false      // S1：部分灯未确认生效（可重试，草稿保留）
     )
 
     data class TimerUiState(
@@ -133,9 +155,16 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
      */
     fun setPower(on: Boolean) {
         fire {
-            when (lamp.send(LampFrames.power(on))) {
-                SendResult.SentToAll, SendResult.SentToSome -> _powerOn.value = on
-                else -> {}
+            val report = lamp.sendDetailed(LampFrames.power(on))
+            when {
+                report.allOk -> { _powerOn.value = on; _powerIssue.value = null }
+                report.targets.isEmpty() -> _powerIssue.value = null // NoTarget：保持现值（未发出）
+                else -> {
+                    // S1：≥1 台已生效才按目标更新；0 台生效（全败）保持现值——
+                    // 两种情况都就近披露失败台数
+                    if (report.results.values.any { it }) _powerOn.value = on
+                    _powerIssue.value = "有 ${report.failedMacs.size} 盏灯未生效，可重试"
+                }
             }
         }
     }
@@ -170,12 +199,17 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
     fun selectEffect(tab: Int, position: Int, deviceIndex: Int) {
         _mode.value = _mode.value.copy(tab = tab, selected = deviceIndex)
         fire {
-            when (lamp.send(LampFrames.modeSelect(deviceIndex))) {
-                SendResult.SentToAll, SendResult.SentToSome -> {
+            val report = lamp.sendDetailed(LampFrames.modeSelect(deviceIndex))
+            when {
+                report.allOk -> {
                     _lampMode.value = LampMode.Effect(deviceIndex)
                     _lastEffectSendOk.value = true
+                    _effectTargets.value = report.targets // 成员快照：徽章成员一致性判定用
                 }
-                else -> _lastEffectSendOk.value = false
+                else -> {
+                    _lastEffectSendOk.value = false
+                    _effectTargets.value = null
+                }
             }
         }
     }
@@ -238,23 +272,26 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
         val s = _timer.value.slot(openSlot)
         val revAtSave = s.revision
         fire {
-            val result = lamp.send(LampFrames.timerSet(s.hour, s.minute, openSlot, weekBits(s.weeks)))
+            val report = lamp.sendDetailed(LampFrames.timerSet(s.hour, s.minute, openSlot, weekBits(s.weeks)))
             _timer.update { cur ->
                 cur.withSlot(openSlot) { slot ->
                     if (slot.revision != revAtSave) {
                         // 等待期间有新编辑：只记录投递结果，不动 dirty/草稿
-                        slot.copy(phase = when (result) {
-                            SendResult.SentToAll, SendResult.SentToSome -> TimerPhase.Sent
-                            SendResult.NoTarget -> TimerPhase.NoTarget
+                        slot.copy(phase = when {
+                            report.allOk -> TimerPhase.Sent
+                            report.results.values.any { it } -> TimerPhase.Sent
+                            report.targets.isEmpty() -> TimerPhase.NoTarget
                             else -> TimerPhase.Failed
                         })
-                    } else when (result) {
-                        SendResult.SentToAll, SendResult.SentToSome ->
-                            slot.copy(dirty = false, phase = TimerPhase.Sent)
-                        SendResult.NoTarget ->
-                            slot.copy(phase = TimerPhase.NoTarget) // 未连接，草稿已保留
-                        else ->
-                            slot.copy(phase = TimerPhase.Failed)
+                    } else when {
+                        report.allOk ->
+                            slot.copy(dirty = false, phase = TimerPhase.Sent, partial = false)
+                        report.results.values.any { it } ->
+                            // S1：部分成功=已发部分灯，未确认全量生效——保留草稿可重试
+                            slot.copy(dirty = true, phase = TimerPhase.Sent, partial = true)
+                        report.targets.isEmpty() ->
+                            slot.copy(phase = TimerPhase.NoTarget, partial = false)
+                        else -> slot.copy(phase = TimerPhase.Failed, partial = false)
                     }
                 }
             }

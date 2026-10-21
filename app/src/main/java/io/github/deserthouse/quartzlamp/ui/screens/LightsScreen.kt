@@ -428,7 +428,7 @@ private fun EffectPane(vm: AppViewModel) {
     val mode by vm.mode.collectAsState()
     val conn by vm.state.collectAsState()
     val lampMode by vm.lampMode.collectAsState()
-    val effectOk by vm.lastEffectSendOk.collectAsState()
+    val running by vm.effectRunning.collectAsState()
     val powerOn by vm.powerOn.collectAsState()
     var tab by remember { mutableIntStateOf(mode.tab) }
     val selectedQuandeng = (mode.selected - 1) / 17 == 8
@@ -482,9 +482,7 @@ private fun EffectPane(vm: AppViewModel) {
                         Text("示意", style = MaterialTheme.typography.labelMedium)
                     }
                 }
-                // AV04-04：徽章有依据——已连接+灯效模式+该帧真实投递成功+电源开
-                val running = conn == ConnState.CONNECTED &&
-                    lampMode is LampMode.Effect && effectOk && powerOn
+                // S1/R44-04：运行中=投递全成功+成员一致（组合流），不再读折叠布尔
                 Surface(
                     shape = CircleShape,
                     color = if (running) MaterialTheme.colorScheme.primary

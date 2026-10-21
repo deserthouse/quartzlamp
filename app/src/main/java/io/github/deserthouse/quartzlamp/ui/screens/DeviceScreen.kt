@@ -182,6 +182,7 @@ fun DeviceScreen(vm: AppViewModel) {
 private fun PowerBrightnessCard(vm: AppViewModel) {
     val color by vm.color.collectAsState()
     val powerOn by vm.powerOn.collectAsState()
+    val powerIssue by vm.powerIssue.collectAsState()
 
     Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceVariant) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -229,6 +230,13 @@ private fun PowerBrightnessCard(vm: AppViewModel) {
                         // 协议值域 0-1000 不变（BC05），显示层换算百分比
                         contentDescription = "亮度：当前 ${color.bright / 10}%"
                     }
+                )
+            }
+            powerIssue?.let { issue ->
+                Text(
+                    issue,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.error
                 )
             }
             Text(

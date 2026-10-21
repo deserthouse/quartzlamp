@@ -114,7 +114,11 @@ private fun TimerCard(
                     when (slot.phase) {
                         AppViewModel.TimerPhase.NoTarget -> "未连接 · 未发送（草稿已保留）"
                         AppViewModel.TimerPhase.Failed -> "发送/读取失败 · 可重试"
-                        AppViewModel.TimerPhase.Sent -> if (slot.dirty) "草稿未应用" else "已发送 · 待读回确认"
+                        AppViewModel.TimerPhase.Sent -> when {
+                            slot.dirty && slot.partial -> "已发送 · 部分灯未确认，可重试"
+                            slot.dirty -> "草稿未应用"
+                            else -> "已发送 · 待读回确认"
+                        }
                         AppViewModel.TimerPhase.Idle ->
                             if (slot.dirty) "草稿未应用"
                             else if (slot.loaded) "已从灯读回" + (slot.readFrom?.let { "（$it）" } ?: "")

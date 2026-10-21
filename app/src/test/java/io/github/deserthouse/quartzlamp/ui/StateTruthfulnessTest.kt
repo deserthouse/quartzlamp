@@ -2,6 +2,9 @@ package io.github.deserthouse.quartzlamp.ui
 
 import io.github.deserthouse.quartzlamp.ble.ScannedLamp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
@@ -58,6 +61,52 @@ class StateTruthfulnessTest {
         vm.setPower(false)
         Thread.sleep(100)
         assertTrue("NoTarget 不得翻转状态型控制", vm.powerOn.value)
+    }
+
+    // ━━━ S1 逐灯投递（R44-04）━━━
+
+    @Test fun `S1_成员替换后运行徽章回落`() {
+        val vm = vm()
+        val collector = CoroutineScope(Job() + Dispatchers.Default).launch {
+            vm.effectRunning.collect {}
+        }
+        Thread.sleep(100) // 组合流需活跃收集者（WhileSubscribed）
+        vm.connect(ScannedLamp("A", "AA", -50))
+        vm.selectEffect(0, 0, 1)
+        assertTrue(vm.lastEffectSendOk.value)
+        vm.connect(ScannedLamp("B", "BB", -51))
+        lamp.disconnect("AA")
+        Thread.sleep(200)
+        assertTrue("成员替换后旧投递证据对新灯无效", vm.effectRunning.value.not())
+        collector.cancel()
+    }
+
+    @Test fun `S1_电源部分成功_状态更新且就近披露`() {
+        val vm = vm()
+        vm.connect(ScannedLamp("A", "AA", -50))
+        vm.connect(ScannedLamp("B", "BB", -51))
+        lamp.failMac = "AA"
+        vm.setPower(false)
+        Thread.sleep(150)
+        // B 生效（关灯）→ 状态跟随时序语义更新为 false；失败台数就近披露
+        assertEquals(false, vm.powerOn.value)
+        assertTrue("失败台数应就近披露", vm.powerIssue.value?.contains("1") == true)
+        lamp.failMac = null
+    }
+
+    @Test fun `S1_定时部分成功保留草稿可重试`() {
+        val vm = vm()
+        vm.connect(ScannedLamp("A", "AA", -50))
+        vm.connect(ScannedLamp("B", "BB", -51)) // 双灯：A 失败 B 成功=真"部分"
+        lamp.failMac = "AA"
+        vm.updateTimerSlot(true, 8, 30, listOf(true, false, false, false, false, false, false))
+        vm.saveTimerSlot(true)
+        Thread.sleep(150)
+        val slot = vm.timer.value.open
+        assertEquals(AppViewModel.TimerPhase.Sent, slot.phase)
+        assertEquals("部分成功不得置 clean", true, slot.dirty)
+        assertTrue(slot.partial)
+        lamp.failMac = null
     }
 
     @Test fun `连接时电源正常生效`() {
