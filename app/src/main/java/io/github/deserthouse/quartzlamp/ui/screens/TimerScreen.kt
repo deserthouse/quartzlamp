@@ -76,10 +76,9 @@ fun TimerScreen(vm: AppViewModel) {
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("定时", style = MaterialTheme.typography.titleLarge) // U2：收敛双头部占位（顶栏品牌+页标题）
         TimerCard("定时开灯", timer.open, open = true, vm = vm)
         TimerCard("定时关灯", timer.close, open = false, vm = vm)
         Text(
@@ -103,7 +102,7 @@ private fun TimerCard(
 
     Surface(
         shape = MaterialTheme.shapes.large,
-        color = MaterialTheme.colorScheme.surfaceVariant,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {

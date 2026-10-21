@@ -153,10 +153,9 @@ fun DeviceScreen(vm: AppViewModel) {
         modifier = Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 20.dp),
+            .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("设备", style = MaterialTheme.typography.titleLarge) // U2：收敛双头部占位（顶栏品牌+页标题）
         PowerBrightnessCard(vm)
         ConnectionCard(
             vm = vm,
@@ -187,7 +186,7 @@ private fun PowerBrightnessCard(vm: AppViewModel) {
     val sessions by vm.sessions.collectAsState()
     val anyConnected = sessions.values.any { it == SessionState.CONNECTED }
 
-    Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceVariant) {
+    Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceContainerLow) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("电源与亮度", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
@@ -273,7 +272,7 @@ private fun ConnectionCard(
     onEnableBt: () -> Unit,
     onOpenAppSettings: () -> Unit
 ) {
-    Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceVariant) {
+    Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceContainerLow) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("连接管理", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
@@ -410,7 +409,7 @@ private val micTypeValues = listOf(1, 4, 3, 2) // 经典=1 迪斯科=4 动感=3 
 @Composable
 private fun LampTuningCard(vm: AppViewModel) {
     val mic by vm.mic.collectAsState()
-    Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceVariant) {
+    Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceContainerLow) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text("灯端拾音", style = MaterialTheme.typography.titleMedium)
             Text(

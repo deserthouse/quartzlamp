@@ -4,11 +4,13 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.viewModels
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -24,6 +26,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.filled.Settings
@@ -77,6 +83,8 @@ private fun MainScaffold(vm: AppViewModel) {
     val state by vm.state.collectAsState()
     val backStack by nav.currentBackStackEntryAsState()
     val currentRoute = backStack?.destination?.route
+    val inSettings = currentRoute == "settings"
+    val pageTitle = if (inSettings) "设置" else tabs.firstOrNull { it.route == currentRoute }?.label ?: "设备"
 
     val connLabel = when (state) {
         ConnState.CONNECTED -> "已连接"
@@ -88,12 +96,36 @@ private fun MainScaffold(vm: AppViewModel) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("拾音灯 · $connLabel") },
+                title = { Text(pageTitle, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                navigationIcon = {
+                    if (inSettings) {
+                        IconButton(onClick = { nav.popBackStack() }) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "返回")
+                        }
+                    }
+                },
                 actions = {
-                    IconButton(
-                        onClick = { nav.navigate("settings") { launchSingleTop = true } }
-                    ) {
-                        Icon(Icons.Filled.Settings, contentDescription = "设置")
+                    if (!inSettings) {
+                        Surface(
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.semantics { contentDescription = "连接状态：$connLabel" }
+                        ) {
+                            Row(
+                                Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(Icons.Outlined.Bluetooth, null, Modifier.size(14.dp))
+                                Text(connLabel, style = MaterialTheme.typography.labelMedium)
+                            }
+                        }
+                        IconButton(
+                            onClick = { nav.navigate("settings") { launchSingleTop = true } }
+                        ) {
+                            Icon(Icons.Filled.Settings, contentDescription = "设置")
+                        }
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors()

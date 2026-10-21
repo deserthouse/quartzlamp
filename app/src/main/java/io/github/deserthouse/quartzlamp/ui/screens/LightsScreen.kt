@@ -119,12 +119,10 @@ fun LightsScreen(vm: AppViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 20.dp)
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("灯效", style = MaterialTheme.typography.titleLarge) // U2：收敛双头部占位（顶栏品牌+页标题）
-
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
             LightsPane.entries.forEachIndexed { i, p ->
                 SegmentedButton(
@@ -430,7 +428,6 @@ private fun HintBar(name: String, tab: Int, modifier: Modifier) {
 private fun EffectPane(vm: AppViewModel) {
     val mode by vm.mode.collectAsState()
     val conn by vm.state.collectAsState()
-    val lampMode by vm.lampMode.collectAsState()
     val running by vm.effectRunning.collectAsState()
     val powerOn by vm.powerOn.collectAsState()
     var tab by remember { mutableIntStateOf(mode.tab) }
@@ -441,7 +438,7 @@ private fun EffectPane(vm: AppViewModel) {
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         // 速度+模式灵敏度控制条（分段下方；U2 并排方案实测标签重叠已撤回——
         // CompactSlider 非半宽设计，堆叠为正确形态）
-        Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceVariant) {
+        Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceContainerLow) {
             Column(
                 Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp) // UI51-01：两组间显式组距
@@ -527,7 +524,7 @@ private fun EffectPane(vm: AppViewModel) {
                 Surface(
                     shape = CircleShape,
                     color = if (selected) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.surfaceVariant,
+                    else MaterialTheme.colorScheme.surfaceContainerHigh,
                     contentColor = if (selected) MaterialTheme.colorScheme.onPrimary
                     else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
@@ -582,7 +579,11 @@ private fun EffectPane(vm: AppViewModel) {
         }
 
         // 双列网格（N5 分组 + UI51-06 selectableGroup 单选组语义）
-        Box(Modifier.selectableGroup()) {
+        // 单选语义不能改变测量布局：所有分组与卡片行必须依次占据纵向空间。
+        Column(
+            modifier = Modifier.fillMaxWidth().selectableGroup(),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
         val items = Effects.effects[tab]
         // U2：大字下长名唯一区分词不被两行省略号吞掉——fontScale>1.3 切单列
         val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
@@ -634,7 +635,7 @@ private fun EffectCard(name: String, selected: Boolean, tab: Int, modifier: Modi
     Surface(
         shape = MaterialTheme.shapes.medium,
         color = if (selected) MaterialTheme.colorScheme.primaryContainer
-        else MaterialTheme.colorScheme.surfaceVariant,
+        else MaterialTheme.colorScheme.surfaceContainerLow,
         contentColor = if (selected) MaterialTheme.colorScheme.onPrimaryContainer
         else MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = modifier
