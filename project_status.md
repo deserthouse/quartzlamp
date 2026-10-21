@@ -592,6 +592,12 @@ app/                       ← 0.4.0：ble/protocol/ui/data，debug专用fake，
 > ——发布前代码复审：零 P1/P2，3 项 P3 卫生修正（TimeInput remember 键/死参数/死 import）随版；
 > 观察项 2 条入 CHANGELOG 已知问题（多灯重连徽章语义/休眠律动接口并发窗口——均不可达或已知限制）。
 >
+> **WB 复验进展（2026-10-22 凌晨第二轮）**：深色灯效页 ✓（codex 新色板深色可读/渐隐尾缘
+> 24dp 生效/UA 组距生效/P1 分组纵向无叠放）；深色定时与设置页因 SystemUI ANR 循环+黑屏终止
+> （killall 后仍卡死）；**宿主环境判定不可用**——多 qemu 史+SystemUI ANR+adb 断连三重叠加，
+> 本轮 AVD 交互与截屏全部失效。建议宿主重启后再跑剩余欠账（深色定时/设置、font2、TimeInput、
+> BC06、TalkBack、主题图标）。
+>
 > **当前待办（欠账清偿单 docs/workorder_debts_2026-10-21.md：R1 帧一致性+链接抽验/R2 深色
 > 三页+font2 四页+TimeInput/R3 TalkBack 四流程/R4 主题图标——分层环境门禁；全清则挂账清零，
 > 发现缺陷→0.5.3(12)。真机终验清单附单尾。历史：总账 WA 已随 0.5.2(11) 发布——
