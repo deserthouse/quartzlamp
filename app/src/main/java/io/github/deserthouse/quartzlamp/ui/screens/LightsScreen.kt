@@ -9,6 +9,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -122,7 +123,7 @@ fun LightsScreen(vm: AppViewModel) {
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("灯效", style = MaterialTheme.typography.headlineLarge)
+        Text("灯效", style = MaterialTheme.typography.titleLarge) // U2：收敛双头部占位（顶栏品牌+页标题）
 
         SingleChoiceSegmentedButtonRow(Modifier.fillMaxWidth()) {
             LightsPane.entries.forEachIndexed { i, p ->
@@ -438,24 +439,47 @@ private fun EffectPane(vm: AppViewModel) {
     // N4：滚动上移至 LightsScreen 外层；控制条上移至分段正下方（用户意见），
     // 其后=当前效果条→分类→网格
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // 速度+模式灵敏度控制条
+        // 速度+模式灵敏度控制条（U2：宽屏并排压缩垂直占位，窄屏堆叠；仍位于分段下方）
         Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceVariant) {
-            Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
-                CompactSlider(
-                    label = "速度",
-                    note = if (selectedQuandeng) "已选全灯类，上限 70" else null,
-                    // AV04-04：显示发送值——限幅时 UI 与帧一致
-                    value = if (selectedQuandeng) mode.speed.coerceAtMost(70) else mode.speed,
-                    onDrag = { vm.updateSpeed(it) },
-                    onRelease = { vm.sendSpeed() }
-                )
-                CompactSlider(
-                    label = "灵敏度",
-                    note = null,
-                    value = mode.sensitivity,
-                    onDrag = { vm.updateSensitivity(it) },
-                    onRelease = { vm.sendSensitivity() }
-                )
+            BoxWithConstraints(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                if (maxWidth >= 380.dp) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Box(Modifier.weight(1f)) {
+                            CompactSlider(
+                                label = "速度",
+                                note = if (selectedQuandeng) "已选全灯类，上限 70" else null,
+                                // AV04-04：显示发送值——限幅时 UI 与帧一致
+                                value = if (selectedQuandeng) mode.speed.coerceAtMost(70) else mode.speed,
+                                onDrag = { vm.updateSpeed(it) },
+                                onRelease = { vm.sendSpeed() }
+                            )
+                        }
+                        Box(Modifier.weight(1f)) {
+                            CompactSlider(
+                                label = "灵敏度",
+                                note = null,
+                                value = mode.sensitivity,
+                                onDrag = { vm.updateSensitivity(it) },
+                                onRelease = { vm.sendSensitivity() }
+                            )
+                        }
+                    }
+                } else {
+                    CompactSlider(
+                        label = "速度",
+                        note = if (selectedQuandeng) "已选全灯类，上限 70" else null,
+                        value = if (selectedQuandeng) mode.speed.coerceAtMost(70) else mode.speed,
+                        onDrag = { vm.updateSpeed(it) },
+                        onRelease = { vm.sendSpeed() }
+                    )
+                    CompactSlider(
+                        label = "灵敏度",
+                        note = null,
+                        value = mode.sensitivity,
+                        onDrag = { vm.updateSensitivity(it) },
+                        onRelease = { vm.sendSensitivity() }
+                    )
+                }
             }
         }
 
@@ -561,6 +585,9 @@ private fun EffectPane(vm: AppViewModel) {
 
         // 双列网格（N5：tab 内二级分组——显示重排，卡片发固有 deviceIndex，帧值零变动）
         val items = Effects.effects[tab]
+        // U2：大字下长名唯一区分词不被两行省略号吞掉——fontScale>1.3 切单列
+        val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
+        val cols = if (fontScale > 1.3f) 1 else 2
         val groups = Effects.SUB_CAT_ORDER.map { c ->
             c to items.withIndex().filter { Effects.subCatOf(tab, it.value) == c }
         }.filter { it.second.isNotEmpty() }
@@ -578,7 +605,7 @@ private fun EffectPane(vm: AppViewModel) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            members.chunked(2).forEach { rowItems ->
+            members.chunked(cols).forEach { rowItems ->
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -593,7 +620,7 @@ private fun EffectPane(vm: AppViewModel) {
                             modifier = Modifier.weight(1f)
                         ) { vm.selectEffect(tab, pos, deviceIndex) }
                     }
-                    if (rowItems.size == 1) Spacer(Modifier.weight(1f)) // 奇数行占位对齐
+                    if (rowItems.size == 1 && cols == 2) Spacer(Modifier.weight(1f)) // 奇数行占位对齐
                 }
             }
         }
@@ -649,9 +676,10 @@ private fun CompactSlider(
     note: String?,
     value: Int,
     onDrag: (Int) -> Unit,
-    onRelease: () -> Unit
+    onRelease: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
-    Column {
+    Column(modifier = modifier) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 "$value",

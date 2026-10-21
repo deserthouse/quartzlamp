@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
@@ -78,7 +79,7 @@ fun TimerScreen(vm: AppViewModel) {
             .padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("定时", style = MaterialTheme.typography.headlineLarge)
+        Text("定时", style = MaterialTheme.typography.titleLarge) // U2：收敛双头部占位（顶栏品牌+页标题）
         TimerCard("定时开灯", timer.open, open = true, vm = vm)
         TimerCard("定时关灯", timer.close, open = false, vm = vm)
         Text(
@@ -184,8 +185,9 @@ private fun TimerCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
-            Row {
-                TextButton(onClick = { vm.saveTimerSlot(open) }) { Text("应用到灯") }
+            // U2：应用为主操作（filled Button）、读取为次（text）——层级按任务频率
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { vm.saveTimerSlot(open) }) { Text("应用到灯") }
                 TextButton(onClick = { vm.queryTimerSlot(open) }) { Text("从灯读取") }
             }
         }

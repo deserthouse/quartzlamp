@@ -156,7 +156,7 @@ fun DeviceScreen(vm: AppViewModel) {
             .padding(horizontal = 20.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Text("设备", style = MaterialTheme.typography.headlineLarge)
+        Text("设备", style = MaterialTheme.typography.titleLarge) // U2：收敛双头部占位（顶栏品牌+页标题）
         PowerBrightnessCard(vm)
         ConnectionCard(
             vm = vm,
@@ -183,6 +183,9 @@ private fun PowerBrightnessCard(vm: AppViewModel) {
     val color by vm.color.collectAsState()
     val powerOn by vm.powerOn.collectAsState()
     val powerIssue by vm.powerIssue.collectAsState()
+    // U2：无已连接灯时电源钮呈中性（不伪装灯端观测）
+    val sessions by vm.sessions.collectAsState()
+    val anyConnected = sessions.values.any { it == SessionState.CONNECTED }
 
     Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceVariant) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -190,10 +193,16 @@ private fun PowerBrightnessCard(vm: AppViewModel) {
                 Text("电源与亮度", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
                 Surface(
                     shape = CircleShape,
-                    color = if (powerOn) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.surface,
-                    contentColor = if (powerOn) MaterialTheme.colorScheme.onPrimary
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = when {
+                        !anyConnected -> MaterialTheme.colorScheme.surfaceVariant
+                        powerOn -> MaterialTheme.colorScheme.primary
+                        else -> MaterialTheme.colorScheme.surface
+                    },
+                    contentColor = when {
+                        !anyConnected -> MaterialTheme.colorScheme.onSurfaceVariant
+                        powerOn -> MaterialTheme.colorScheme.onPrimary
+                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                    },
                     modifier = Modifier
                         .size(64.dp)
                         .clip(CircleShape)
