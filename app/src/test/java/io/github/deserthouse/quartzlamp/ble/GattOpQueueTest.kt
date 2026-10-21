@@ -1,6 +1,12 @@
 package io.github.deserthouse.quartzlamp.ble
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.plus
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -162,26 +168,79 @@ class GattOpQueueTest {
         q.start(backgroundScope + UnconfinedTestDispatcher(testScheduler))
         q.post(f(0xBC, 1))
         assertEquals(listOf("W:BC01"), t.ops) // 在途等 ACK
-        val w = CompletableDeferred<Result<Boolean>>()
+        var queuedResult: Boolean? = null
         backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
-            w.complete(runCatching { q.write(f(0xBC, 2)) })
+            queuedResult = q.write(f(0xBC, 2)) // Q1：关闭折为显式 false，不再抛裸异常
         }
         advanceUntilIdle()
-        q.close() // 排队等待者统一失败（取消异常）
-        assertTrue(w.isCompleted)
-        assertTrue(w.getCompleted().isFailure)
+        q.close()
+        assertTrue(queuedResult != null)
+        assertEquals("排队等待者收到的应是显式 false", false, queuedResult)
+    }
+
+    // ━━━ Q1 终态所有权矩阵（R44-01/T44-01）━━━
+
+    // ━━━ Q1 矩阵续：真实时间风格（虚拟时间与真实挂起语义纠缠，独立 scope 消歧）━━━
+
+    @Test
+    fun `Q1_消费取消_在途与排队等待者均终结`() {
+        val t = FakeTransport()
+        val q = GattOpQueue("t", t, 60_000)
+        val scope = CoroutineScope(Dispatchers.Default)
+        val job = q.start(scope)
+        var inFlight: Boolean? = null
+        var queued: Boolean? = null
+        val w1 = scope.launch { inFlight = q.write(f(0xBC, 1)) }
+        Thread.sleep(200) // 在途建立（ACK 未到）
+        val w2 = scope.launch { queued = q.write(f(0xBC, 2)) }
+        Thread.sleep(200) // w2 入队
+        job.cancel() // 消费取消：两种状态等待者都须终结
+        runBlocking {
+            withTimeoutOrNull(2_000) { w1.join(); w2.join() }
+        }
+        scope.cancel()
+        assertEquals("在途等待者终结为 false", false, inFlight)
+        assertEquals("排队等待者终结为 false", false, queued)
     }
 
     @Test
-    fun `close后post与reactive不再执行-R20-06`() = runTest {
+    fun `Q1_postReactiveAwait成功ACK返回true`() {
         val t = FakeTransport()
         val q = GattOpQueue("t", t, 60_000)
-        q.start(backgroundScope + UnconfinedTestDispatcher(testScheduler))
-        q.close()
-        val before = t.ops.size
-        q.post(f(0xBC, 1))
-        q.postReactive(f(0xBC, 9))
-        assertEquals(before, t.ops.size)
-        Unit
+        val scope = CoroutineScope(Dispatchers.Default)
+        q.start(scope)
+        var r: Boolean? = null
+        val w = scope.launch { r = q.postReactiveAwait(f(0xBC, 9)) }
+        Thread.sleep(200)
+        assertEquals(1, t.pendingWriteAcks.size)
+        t.ack()
+        runBlocking { withTimeoutOrNull(2_000) { w.join() } }
+        scope.cancel()
+        assertEquals("T44-01：成功 ACK 有限时间返回 true", true, r)
+    }
+
+    @Test
+    fun `Q1_postReactiveAwait被conflate替换_共享最新帧结果`() {
+        val t = FakeTransport()
+        val q = GattOpQueue("t", t, 60_000)
+        val scope = CoroutineScope(Dispatchers.Default)
+        q.start(scope)
+        var r1: Boolean? = null
+        var r2: Boolean? = null
+        val w1 = scope.launch { r1 = q.postReactiveAwait(f(0xBC, 9, 1)) }
+        Thread.sleep(200) // 帧一在途
+        val w2 = scope.launch { r2 = q.postReactiveAwait(f(0xBC, 9, 2)) } // 执行中→新队列项
+        Thread.sleep(200)
+        // 持续排空 ACK（op 推进是异步的：帧一 ACK 后消费者才派发帧二/或已被 conflate 合并）
+        val deadline = System.currentTimeMillis() + 2_000
+        while ((r1 == null || r2 == null) && System.currentTimeMillis() < deadline) {
+            t.pendingWriteAcks.removeFirstOrNull()?.invoke(true, null)
+            if (r1 != null && r2 != null) break
+            Thread.sleep(20)
+        }
+        runBlocking { withTimeoutOrNull(1_000) { w1.join(); w2.join() } }
+        scope.cancel()
+        assertEquals(true, r1)
+        assertEquals(true, r2)
     }
 }
