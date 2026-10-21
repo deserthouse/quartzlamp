@@ -230,7 +230,9 @@ M0 时对比厂商 dex 内 FastBle 类集与 2.3.4 确认版本一致（厂商 c
 
 > **版本**：0.5.0（versionCode 9）；本地v0.5.0锚定9fbd45a，既有发布记录见下文③。本次UI代码专项未重验远端Release。版本唯一事实源=`app/build.gradle.kts`。
 > **验证边界**：AVD 假灯 + 协议层已验（多轮独立复审修复至 R/V44）；**真 BLE/真灯端到端、完整 TalkBack、预测式返回等未验**——列用户终验，任何复审不代签。
-> **当前待办（总账单 docs/workorder_backlog_2026-10-21.md；WA 已执行并随 0.5.2(11) 发布——
+> **当前待办（欠账清偿单 docs/workorder_debts_2026-10-21.md：R1 帧一致性+链接抽验/R2 深色
+> 三页+font2 四页+TimeInput/R3 TalkBack 四流程/R4 主题图标——分层环境门禁；全清则挂账清零，
+> 发现缺陷→0.5.3(12)。真机终验清单附单尾。历史：总账 WA 已随 0.5.2(11) 发布——
 > openUrl Toast/头侧渐隐/重连矩阵测试+假灯结算修正；tag v0.5.2=ae0e0d4 已推送，Release 资产
 > sha256:0af0282c 核验一致）**：未修缺陷 1（openUrl 静默）+
 > 关闭条件缺口 2（Q2 重连矩阵测试/TalkBack 实测+mono 抽验）+ AVD 复验五项（单实例前置）+
