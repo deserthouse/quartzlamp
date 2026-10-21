@@ -91,7 +91,7 @@ fun SettingsScreen() {
                     fontWeight = FontWeight.Medium
                 )
                 Text(
-                    "v${BuildConfig.VERSION_NAME} (versionCode ${BuildConfig.VERSION_CODE})",
+                    "v${BuildConfig.VERSION_NAME}",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -101,15 +101,14 @@ fun SettingsScreen() {
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                AboutLinkRow(
-                    ctx, "GitHub 项目主页", "github.com/deserthouse/quartzlamp",
-                    "https://github.com/deserthouse/quartzlamp"
-                )
-                // 作者行（点击进作者主页）
+                AboutLinkRow(ctx, "项目主页", "github.com/deserthouse/quartzlamp") {
+                    openUrl(ctx, "https://github.com/deserthouse/quartzlamp")
+                }
+                // 作者行（UI51-02：文字区 weight 预算，姓名主行/账号次行自然换行）
                 Row(
                     Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 48.dp)
+                        .heightIn(min = 56.dp)
                         .clip(MaterialTheme.shapes.medium)
                         .clickable { openUrl(ctx, "https://github.com/deserthouse") }
                         .padding(vertical = 6.dp),
@@ -123,28 +122,19 @@ fun SettingsScreen() {
                             .clip(CircleShape)
                     )
                     Spacer(Modifier.width(14.dp))
-                    Column {
-                        Row(verticalAlignment = Alignment.Bottom) {
-                            Text("澪狼", style = MaterialTheme.typography.bodyLarge)
-                            Spacer(Modifier.width(6.dp))
-                            Text(
-                                "@deserthouse",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
+                    Column(Modifier.weight(1f)) {
                         Text(
-                            "Ling the Wolp",
-                            style = MaterialTheme.typography.labelMedium,
+                            "澪狼 · Ling the Wolp",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Text(
+                            "@deserthouse",
+                            style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
-                Text(
-                    "图标基于 Twemoji（Twitter, Inc. 及贡献者，CC-BY 4.0）",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                // 图标来源说明已按用户澄清移除（2026-10-21：非 Twemoji，不虚构来源）
             }
         }
 
@@ -169,30 +159,27 @@ private fun openUrl(context: Context, url: String) {
     }
 }
 
-/** 项目/作者链接行（Prunoid 关于卡样式）：label + primary 值 + Launch 图标，整行 48dp 触区 */
+/** 标准链接行（UI51-02）：主标题 weight 预算 + 次行域名 + Launch 固定占位，整行 48dp 触区 */
 @Composable
-private fun AboutLinkRow(ctx: Context, label: String, value: String, url: String) {
+private fun AboutLinkRow(ctx: Context, label: String, urlText: String, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
             .heightIn(min = 48.dp)
             .clip(MaterialTheme.shapes.medium)
-            .clickable { openUrl(ctx, url) }
+            .clickable(onClick = onClick)
             .padding(vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            label,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(Modifier.width(6.dp))
-        Text(
-            value,
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.primary
-        )
-        Spacer(Modifier.weight(1f))
+        Column(Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                urlText,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary
+            )
+        }
+        Spacer(Modifier.width(8.dp))
         Icon(
             Icons.Outlined.Launch,
             contentDescription = null,

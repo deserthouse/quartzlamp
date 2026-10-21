@@ -57,7 +57,6 @@ Release signing reads `~/.gradle/gradle.properties` (four `QUARTZLAMP_*` keys);
 - This is an independent reimplementation of a controller for personally owned hardware, for learning and personal use. Not affiliated with Lenze Tech; no vendor code or assets reused. Effect names are functional descriptive phrases.
 - AI disclosure: developed with substantial AI assistance (ZCode / GLM) under human direction and acceptance.
 - Provided as-is, without warranty of any kind; use at your own risk. BLE commands target this lamp hardware only.
-- Icon credit: Icon artwork based on Twemoji by Twitter, Inc. and other contributors (CC-BY 4.0).
 
 > 中文声明见 [README.md](README.md)。
 
