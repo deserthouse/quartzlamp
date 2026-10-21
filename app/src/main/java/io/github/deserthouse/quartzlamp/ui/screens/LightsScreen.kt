@@ -442,7 +442,10 @@ private fun EffectPane(vm: AppViewModel) {
         // 速度+模式灵敏度控制条（分段下方；U2 并排方案实测标签重叠已撤回——
         // CompactSlider 非半宽设计，堆叠为正确形态）
         Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceVariant) {
-            Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+            Column(
+                Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp) // UI51-01：两组间显式组距
+            ) {
                 CompactSlider(
                     label = "速度",
                     note = if (selectedQuandeng) "已选全灯类，上限 70" else null,
@@ -657,7 +660,9 @@ private fun CompactSlider(
     onRelease: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(modifier = modifier) {
+    // UI51-01：标签/数值行与轨道 6dp 独立间隔；限幅说明独立行不与标签拼接；
+    // Slider 绑定 label+stateDescription（读屏可区分两个控制）
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 "$value",
@@ -665,7 +670,7 @@ private fun CompactSlider(
                 color = MaterialTheme.colorScheme.primary
             )
             Text(
-                "  $label${note?.let { "（$it）" } ?: ""}",
+                "  $label",
                 style = MaterialTheme.typography.labelMedium,
                 modifier = Modifier.weight(1f)
             )
@@ -674,7 +679,18 @@ private fun CompactSlider(
             value = value.toFloat(),
             onValueChange = { onDrag(it.toInt()) },
             onValueChangeFinished = onRelease,
-            valueRange = 0f..100f
+            valueRange = 0f..100f,
+            modifier = Modifier.semantics {
+                contentDescription = label
+                stateDescription = "$label $value"
+            }
         )
+        if (note != null) {
+            Text(
+                note,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
     }
 }
