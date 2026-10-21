@@ -113,3 +113,5 @@ MVP 与 M1-M3 迭代（拆解/重建/控制闭环）。内部构建（未发布�
 
 [Unreleased]: https://github.com/deserthouse/quartzlamp/compare/v0.5.0...HEAD
 [0.5.0]: https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.0
+[0.5.1]: https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.1
+[0.5.2]: https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.2
