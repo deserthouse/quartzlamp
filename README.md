@@ -9,6 +9,8 @@
 
 Lenze Tech「拾音灯」硬件的自有 Android 控制器——Material 3 Expressive 重制版。
 
+> **当前状态**：0.5.0（versionCode 9）已于 2026-10-21 出包（双源独立复审后重构，含验收包；**尚未打 tag/发布 Release**）；模拟器与协议层已验，真灯验收进度与边界以 `project_status.md` §7 与 `docs/acceptance.md` 为准——支持硬件为 Lenze Tech 拾音灯（蓝牙 BLE）。源码构建见下文。
+
 ## 功能（三 tab：设备 / 灯效 / 定时）
 
 - **设备**：电源主操作 + 亮度（全局参数，单色/灯效模式均生效）+ 连接管理
@@ -44,20 +46,14 @@ Release 签名凭据走 `~/.gradle/gradle.properties`（QUARTZLAMP_* 四键）�
 - `docs/acceptance.md` — 验收清单（模拟器已验项 + 真机项 + 协议仲裁项）
 - `project_status.md` — 项目状态
 
-## 声明 / Declaration
+## 声明
 
-- 本项目为个人学习/自用目的对自有硬件的控制器重实现；与 Lenze Tech 无关联，
-  未复用其代码与美术资源；灯效名称为功能性描述短语。
-  This is an independent reimplementation of a controller for personally owned hardware,
-  for learning and personal use. Not affiliated with Lenze Tech; no vendor code or assets reused.
-  Effect names are functional descriptive phrases.
+- 本项目为个人学习/自用目的对自有硬件的控制器重实现；与 Lenze Tech 无关联，未复用其代码与美术资源；灯效名称为功能性描述短语。
 - AI 使用声明：本项目由 AI（ZCode / GLM）在人类需求定义与验收下深度参与开发。
-  AI disclosure: developed with substantial AI assistance (ZCode / GLM) under human
-  direction and acceptance.
 - 软件按"现状"提供，使用后果自负；BLE 指令仅面向该拾音灯硬件。
-  Provided as-is, without warranty of any kind; use at your own risk. BLE commands target
-  this lamp hardware only.
 - 图标署名：Icon artwork based on Twemoji by Twitter, Inc. and other contributors (CC-BY 4.0)。
+
+> English declaration: see [README.en.md](README.en.md).
 
 ---
 

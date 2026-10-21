@@ -10,6 +10,8 @@
 An unofficial Material 3 Expressive Android controller for the Lenze Tech
 sound-reactive lamp ("拾音灯"), rebuilt from scratch.
 
+> **Status**: 0.5.0 (versionCode 9) packaged on 2026-10-21 (bounded refactor after dual-source independent review, acceptance packages included; **no tag/Release published yet**); emulator and protocol layers verified — real-lamp acceptance progress and boundaries per `project_status.md` §7 and `docs/acceptance.md`. Supported hardware: the Lenze Tech sound-reactive lamp (Bluetooth BLE). Building from source below.
+
 ## Features (three tabs: Device / Effects / Timer)
 
 - **Device**: power as the primary action + brightness (a global parameter — applies in
@@ -50,20 +52,14 @@ Release signing reads `~/.gradle/gradle.properties` (four `QUARTZLAMP_*` keys);
 - `docs/acceptance.md` — acceptance checklist (emulator-verified + on-device + protocol arbitrations)
 - `project_status.md` — project status (Chinese)
 
-## Declaration / 声明
+## Declaration
 
-- This is an independent reimplementation of a controller for personally owned hardware,
-  for learning and personal use. Not affiliated with Lenze Tech; no vendor code or assets
-  reused. Effect names are functional descriptive phrases.
-  本项目为个人学习/自用目的对自有硬件的控制器重实现；与 Lenze Tech 无关联，
-  未复用其代码与美术资源；灯效名称为功能性描述短语。
-- AI disclosure: developed with substantial AI assistance (ZCode / GLM) under human
-  direction and acceptance.
-  AI 使用声明：本项目由 AI（ZCode / GLM）在人类需求定义与验收下深度参与开发。
-- Provided as-is, without warranty of any kind; use at your own risk. BLE commands target
-  this lamp hardware only.
-  软件按"现状"提供，使用后果自负；BLE 指令仅面向该拾音灯硬件。
+- This is an independent reimplementation of a controller for personally owned hardware, for learning and personal use. Not affiliated with Lenze Tech; no vendor code or assets reused. Effect names are functional descriptive phrases.
+- AI disclosure: developed with substantial AI assistance (ZCode / GLM) under human direction and acceptance.
+- Provided as-is, without warranty of any kind; use at your own risk. BLE commands target this lamp hardware only.
 - Icon credit: Icon artwork based on Twemoji by Twitter, Inc. and other contributors (CC-BY 4.0).
+
+> 中文声明见 [README.md](README.md)。
 
 ---
 
