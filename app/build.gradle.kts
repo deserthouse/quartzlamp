@@ -26,7 +26,8 @@ android {
     }
 
     // ━━━ Release 签名：凭据仅从 ~/.gradle/gradle.properties 注入（QUARTZLAMP_* 前缀）━━━
-    // 缺失/空白时回退 debug 签名，保证 CI 与新克隆可构建。
+    // R44-05：signingConfig 恒创建（占位不读属性），杜绝配置期 getByName 失败——
+    // debug/单测/lint 在无凭据环境可运行；真正打包 release 由下方 taskGraph 门禁拦截。
     val releaseCredentialProps = listOf(
         "QUARTZLAMP_STORE_FILE", "QUARTZLAMP_STORE_PASS",
         "QUARTZLAMP_KEY_ALIAS", "QUARTZLAMP_KEY_PASS"
@@ -34,8 +35,8 @@ android {
     val hasReleaseCredentials = releaseCredentialProps.all { it != null }
 
     signingConfigs {
-        if (hasReleaseCredentials) {
-            create("release") {
+        create("release") {
+            if (hasReleaseCredentials) {
                 storeFile = file(releaseCredentialProps[0]!!)
                 storePassword = releaseCredentialProps[1]
                 keyAlias = releaseCredentialProps[2]
