@@ -573,6 +573,11 @@ app/                       ← 0.4.0：ble/protocol/ui/data，debug专用fake，
 
 > **版本**：0.5.0（versionCode 9）；本地v0.5.0锚定9fbd45a，既有发布记录见下文③。本次UI代码专项未重验远端Release。版本唯一事实源=`app/build.gradle.kts`。
 > **验证边界**：AVD 假灯 + 协议层已验（多轮独立复审修复至 R/V44）；**真 BLE/真灯端到端、完整 TalkBack、预测式返回等未验**——列用户终验，任何复审不代签。
+> **收尾规划已落盘（docs/workorder_rest_2026-10-22.md）：V1 0.5.4(13) 修复发版（首务，线上
+> v0.5.2/v0.5.3 仍带 P1；含 Fake 日志缺口顺手修）→V2 欠账甄别清偿（codex 证据已覆盖深色/font2
+> 六面可直接销账；剩设备页深/大字+TimeInput 往返+TalkBack+主题图标+BC06+可选穷举）→V3 真机终验
+> （用户）→V4 决策点休眠。**
+>
 > **2026-10-22 外部实现会话（codex）UI 修复与重设计（review_2026-10-22_ui_repair.md，提交 2cb03a1 本地→研判采纳推送）——
 > 研判：P1 采纳并坐实（主力核证 499d416:LightsScreen:585 `Box(selectableGroup)` 无布局参数=分组叠放，
 > **UD-2 引入、v0.5.2/v0.5.3 两个已发布版本均带此回归**——灯效分组重叠/末卡遮挡/部分不可点；
