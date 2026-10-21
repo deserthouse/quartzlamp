@@ -2,6 +2,7 @@ package io.github.deserthouse.quartzlamp.ui.screens
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,6 +24,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TimeInput
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
@@ -38,6 +40,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.ToggleableState
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
@@ -104,14 +107,19 @@ private fun TimerCard(
         modifier = Modifier.fillMaxWidth()
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            // V44-02：标题与状态各自持宽度预算（weight 1:1.2）——长状态多行换行，
+            // 不再把标题压成竖排/重叠
+            Row(verticalAlignment = Alignment.Top) {
+                Text(
+                    title,
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f)
+                )
                 if (slot.busy) {
                     CircularProgressIndicator(Modifier.padding(end = 10.dp).size(18.dp))
                 }
                 Text(
-                    // AV04-03：互斥阶段优先（本次动作结果），历史观测（loaded）次之，不再互相压制
-                    when (slot.phase) {
+                    text = when (slot.phase) {
                         AppViewModel.TimerPhase.NoTarget -> "未连接 · 未发送（草稿已保留）"
                         AppViewModel.TimerPhase.Failed -> "发送/读取失败 · 可重试"
                         AppViewModel.TimerPhase.Sent -> when {
@@ -124,6 +132,10 @@ private fun TimerCard(
                             else if (slot.loaded) "已从灯读回" + (slot.readFrom?.let { "（$it）" } ?: "")
                             else "未设置"
                     },
+                    modifier = Modifier
+                        .weight(1.2f)
+                        .padding(start = 8.dp),
+                    textAlign = androidx.compose.ui.text.style.TextAlign.End,
                     style = MaterialTheme.typography.labelMedium,
                     color = when (slot.phase) {
                         AppViewModel.TimerPhase.Failed -> MaterialTheme.colorScheme.error
@@ -184,6 +196,10 @@ private fun TimerCard(
         val pickerState = rememberTimePickerState(
             initialHour = slot.hour, initialMinute = slot.minute, is24Hour = true
         )
+        // V44-03：大字/短屏下表盘数字挤压——fontScale>1.3 默认键盘输入式，可切换
+        var useInput by remember { mutableStateOf(false) }
+        val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
+        if (fontScale > 1.3f) useInput = true
         Dialog(
             onDismissRequest = { showPicker = false },
             properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -196,9 +212,12 @@ private fun TimerCard(
                 Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                     Text("选择时间（24 小时制）", style = MaterialTheme.typography.titleMedium)
                     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        TimePicker(state = pickerState)
+                        if (useInput) TimeInput(state = pickerState) else TimePicker(state = pickerState)
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        TextButton(onClick = { useInput = !useInput }) {
+                            Text(if (useInput) "表盘选择" else "键盘输入")
+                        }
                         TextButton(onClick = { showPicker = false }) { Text("取消") }
                         TextButton(onClick = {
                             vm.updateTimerSlot(open, pickerState.hour, pickerState.minute, slot.weeks)
@@ -224,11 +243,13 @@ private fun WeekChip(label: String, selected: Boolean, onTap: () -> Unit) {
         border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         modifier = Modifier
             .clip(RoundedCornerShape(10.dp))
-            .clickable(onClick = onTap)
+            .toggleable(
+                value = selected,
+                role = Role.Checkbox,
+                onValueChange = { onTap() }
+            )
             .semantics {
-                role = Role.Checkbox
-                this.selected = selected
-                contentDescription = "周${label}${if (selected) "（已选中）" else ""}"
+                contentDescription = "周${label}"
             }
     ) {
         Text(

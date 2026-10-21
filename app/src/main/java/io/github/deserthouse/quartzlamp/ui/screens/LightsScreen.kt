@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.Spacer
@@ -505,13 +507,15 @@ private fun EffectPane(vm: AppViewModel) {
             }
         }
 
-        // 分类 pills（W-R2：尾缘渐隐提示可横滚，消除右缘半枚截断观感）
+        // 分类 pills（V44-01 修正：尾缘 24dp 渐隐仅在有更多内容时出现——
+        // W-R2 的全宽 matchParentSize 遮罩会把次枚画成禁用态）
+        val pillScroll = rememberScrollState()
         Box {
         Row(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             modifier = Modifier
                 .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
+                .horizontalScroll(pillScroll)
         ) {
             Effects.categories.forEachIndexed { i, name ->
                 val selected = tab == i
@@ -533,17 +537,26 @@ private fun EffectPane(vm: AppViewModel) {
                 }
             }
         }
-        // 尾缘渐隐层（matchParentSize 贴合 pills 行）
-        Box(
-            Modifier
-                .matchParentSize()
-                .background(
-                    Brush.horizontalGradient(
-                        0f to Color.Transparent,
-                        1f to MaterialTheme.colorScheme.background
-                    )
+        // 尾缘渐隐层：仅 24dp 且只在可继续滚动时绘制（V44-01）
+        if (pillScroll.canScrollForward || pillScroll.value > 0) {
+            Box(
+                Modifier
+                    .matchParentSize()
+            ) {
+                Box(
+                    Modifier
+                        .align(Alignment.CenterEnd)
+                        .width(24.dp)
+                        .fillMaxHeight()
+                        .background(
+                            Brush.horizontalGradient(
+                                0f to Color.Transparent,
+                                1f to MaterialTheme.colorScheme.background
+                            )
+                        )
                 )
-        )
+            }
+        }
         }
 
         // 双列网格（N5：tab 内二级分组——显示重排，卡片发固有 deviceIndex，帧值零变动）
