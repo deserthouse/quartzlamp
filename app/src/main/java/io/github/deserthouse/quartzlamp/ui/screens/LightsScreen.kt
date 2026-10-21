@@ -547,13 +547,9 @@ private fun EffectPane(vm: AppViewModel) {
                 }
             }
         }
-        // 尾缘渐隐层：仅 24dp 且只在可继续滚动（未到末端）时绘制——
-        // UI51-05：末端不再画尾侧遮罩（canScrollForward=false 即消失）
+        // 尾缘渐隐：canScrollForward 时画尾侧 24dp；头侧渐隐独立按 canScrollBackward（UI51-05）
         if (pillScroll.canScrollForward) {
-            Box(
-                Modifier
-                    .matchParentSize()
-            ) {
+            Box(Modifier.matchParentSize()) {
                 Box(
                     Modifier
                         .align(Alignment.CenterEnd)
@@ -563,6 +559,22 @@ private fun EffectPane(vm: AppViewModel) {
                             Brush.horizontalGradient(
                                 0f to Color.Transparent,
                                 1f to MaterialTheme.colorScheme.background
+                            )
+                        )
+                )
+            }
+        }
+        if (pillScroll.canScrollBackward) {
+            Box(Modifier.matchParentSize()) {
+                Box(
+                    Modifier
+                        .align(Alignment.CenterStart)
+                        .width(24.dp)
+                        .fillMaxHeight()
+                        .background(
+                            Brush.horizontalGradient(
+                                0f to MaterialTheme.colorScheme.background,
+                                1f to Color.Transparent
                             )
                         )
                 )

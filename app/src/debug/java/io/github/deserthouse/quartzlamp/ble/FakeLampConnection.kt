@@ -66,6 +66,8 @@ class FakeLampConnection : LampConnection {
     var reconnectDelayMs = RECONNECT_INTERVAL_MS
     /** 意外断连后重连是否成功（false=耗尽间隔落 DISCONNECTED） */
     var reconnectSucceeds = true
+    /** GAP-1：逐次重连结果序列（非空时按序消费，true=该次成功；耗尽后回落 reconnectSucceeds） */
+    val reconnectFailSeq = mutableListOf<Boolean>()
     /** 扫描出灯延时 */
     var scanDelayMs = 2_000L
     /** 扫描窗口总长（到时自动结束） */
@@ -137,16 +139,19 @@ class FakeLampConnection : LampConnection {
         _sessions.update { it + (mac to SessionState.RECONNECTING) }
         refresh()
         reconnectJobs[mac] = scope.launch {
-            if (reconnectSucceeds) {
+            // GAP-1：按序列逐次判定（空则回落 reconnectSucceeds 总开关）；
+            // 终态=最后一次尝试的真实结果（R44-02 同族：不得用总开关覆盖逐次结果）
+            var lastOk = false
+            for (attemptIdx in 0 until RECONNECT_ATTEMPTS) {
                 delay(reconnectDelayMs)
-            } else {
-                repeat(RECONNECT_ATTEMPTS) { delay(reconnectDelayMs) }
+                lastOk = reconnectFailSeq.removeFirstOrNull() ?: reconnectSucceeds
+                if (lastOk) break
             }
             // 期间被主动断开/重连则以最新状态为准
             if (_sessions.value[mac] != SessionState.RECONNECTING) return@launch
             _sessions.update {
                 it + (
-                    mac to if (reconnectSucceeds) SessionState.CONNECTED else SessionState.DISCONNECTED
+                    mac to if (lastOk) SessionState.CONNECTED else SessionState.DISCONNECTED
                     )
             }
             refresh()

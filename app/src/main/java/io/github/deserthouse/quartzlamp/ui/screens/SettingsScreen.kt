@@ -156,6 +156,9 @@ fun SettingsScreen() {
 private fun openUrl(context: Context, url: String) {
     runCatching {
         context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    }.onFailure {
+        // DEF-1：失败给可见反馈，不再静默
+        android.widget.Toast.makeText(context, "无法打开链接", android.widget.Toast.LENGTH_SHORT).show()
     }
 }
 
