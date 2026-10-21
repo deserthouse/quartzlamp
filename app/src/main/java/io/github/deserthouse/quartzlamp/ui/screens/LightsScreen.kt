@@ -25,6 +25,7 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -532,7 +533,11 @@ private fun EffectPane(vm: AppViewModel) {
                     else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
                         .clip(CircleShape)
-                        .clickable { tab = i }
+                        .selectable(
+                            selected = selected,
+                            role = androidx.compose.ui.semantics.Role.RadioButton,
+                            onClick = { tab = i }
+                        )
                 ) {
                     Text(
                         name,
@@ -542,8 +547,9 @@ private fun EffectPane(vm: AppViewModel) {
                 }
             }
         }
-        // 尾缘渐隐层：仅 24dp 且只在可继续滚动时绘制（V44-01）
-        if (pillScroll.canScrollForward || pillScroll.value > 0) {
+        // 尾缘渐隐层：仅 24dp 且只在可继续滚动（未到末端）时绘制——
+        // UI51-05：末端不再画尾侧遮罩（canScrollForward=false 即消失）
+        if (pillScroll.canScrollForward) {
             Box(
                 Modifier
                     .matchParentSize()
@@ -564,7 +570,8 @@ private fun EffectPane(vm: AppViewModel) {
         }
         }
 
-        // 双列网格（N5：tab 内二级分组——显示重排，卡片发固有 deviceIndex，帧值零变动）
+        // 双列网格（N5 分组 + UI51-06 selectableGroup 单选组语义）
+        Box(Modifier.selectableGroup()) {
         val items = Effects.effects[tab]
         // U2：大字下长名唯一区分词不被两行省略号吞掉——fontScale>1.3 切单列
         val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
@@ -605,6 +612,7 @@ private fun EffectPane(vm: AppViewModel) {
                 }
             }
         }
+        }
 
         Spacer(Modifier.height(16.dp)) // W-R2：滚动列尾余量（底栏呼吸，四页统一）
     }
@@ -626,7 +634,11 @@ private fun EffectCard(name: String, selected: Boolean, tab: Int, modifier: Modi
                 color = if (selected) MaterialTheme.colorScheme.primary else Color.Transparent,
                 shape = MaterialTheme.shapes.medium
             )
-            .clickable(onClick = onTap)
+            .selectable(
+                selected = selected,
+                role = androidx.compose.ui.semantics.Role.RadioButton,
+                onClick = onTap
+            )
     ) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(verticalAlignment = Alignment.Top) {

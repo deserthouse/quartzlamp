@@ -9,7 +9,7 @@
 
 Lenze Tech「拾音灯」硬件的自有 Android 控制器——Material 3 Expressive 重制版。
 
-> **当前状态**：0.5.0（versionCode 9）已于 2026-10-21 出包（双源独立复审后重构，含验收包；**尚未打 tag/发布 Release**）；模拟器与协议层已验，真灯验收进度与边界以 `project_status.md` §7 与 `docs/acceptance.md` 为准——支持硬件为 Lenze Tech 拾音灯（蓝牙 BLE）。源码构建见下文。
+> **当前状态**：[v0.5.0](https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.0)（versionCode 9）已于 2026-10-21 发布（双源独立复审后重构，验收包与资产校验见 Release）；模拟器与协议层已验，真灯验收进度与边界以 `project_status.md` §7 与 `docs/acceptance.md` 为准——支持硬件为 Lenze Tech 拾音灯（蓝牙 BLE）。源码构建见下文。
 
 ## 功能（三 tab：设备 / 灯效 / 定时）
 

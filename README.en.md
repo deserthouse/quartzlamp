@@ -10,7 +10,7 @@
 An unofficial Material 3 Expressive Android controller for the Lenze Tech
 sound-reactive lamp ("拾音灯"), rebuilt from scratch.
 
-> **Status**: 0.5.0 (versionCode 9) packaged on 2026-10-21 (bounded refactor after dual-source independent review, acceptance packages included; **no tag/Release published yet**); emulator and protocol layers verified — real-lamp acceptance progress and boundaries per `project_status.md` §7 and `docs/acceptance.md`. Supported hardware: the Lenze Tech sound-reactive lamp (Bluetooth BLE). Building from source below.
+> **Status**: [v0.5.0](https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.0) (versionCode 9) released on 2026-10-21 (bounded refactor after dual-source independent review; acceptance package and asset checksums in the Release); emulator and protocol layers verified — real-lamp acceptance progress and boundaries per `project_status.md` §7 and `docs/acceptance.md`. Supported hardware: the Lenze Tech sound-reactive lamp (Bluetooth BLE). Building from source below.
 
 ## Features (three tabs: Device / Effects / Timer)
 
