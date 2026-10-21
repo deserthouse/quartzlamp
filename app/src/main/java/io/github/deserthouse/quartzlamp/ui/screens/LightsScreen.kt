@@ -439,47 +439,25 @@ private fun EffectPane(vm: AppViewModel) {
     // N4：滚动上移至 LightsScreen 外层；控制条上移至分段正下方（用户意见），
     // 其后=当前效果条→分类→网格
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        // 速度+模式灵敏度控制条（U2：宽屏并排压缩垂直占位，窄屏堆叠；仍位于分段下方）
+        // 速度+模式灵敏度控制条（分段下方；U2 并排方案实测标签重叠已撤回——
+        // CompactSlider 非半宽设计，堆叠为正确形态）
         Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceVariant) {
-            BoxWithConstraints(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
-                if (maxWidth >= 380.dp) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Box(Modifier.weight(1f)) {
-                            CompactSlider(
-                                label = "速度",
-                                note = if (selectedQuandeng) "已选全灯类，上限 70" else null,
-                                // AV04-04：显示发送值——限幅时 UI 与帧一致
-                                value = if (selectedQuandeng) mode.speed.coerceAtMost(70) else mode.speed,
-                                onDrag = { vm.updateSpeed(it) },
-                                onRelease = { vm.sendSpeed() }
-                            )
-                        }
-                        Box(Modifier.weight(1f)) {
-                            CompactSlider(
-                                label = "灵敏度",
-                                note = null,
-                                value = mode.sensitivity,
-                                onDrag = { vm.updateSensitivity(it) },
-                                onRelease = { vm.sendSensitivity() }
-                            )
-                        }
-                    }
-                } else {
-                    CompactSlider(
-                        label = "速度",
-                        note = if (selectedQuandeng) "已选全灯类，上限 70" else null,
-                        value = if (selectedQuandeng) mode.speed.coerceAtMost(70) else mode.speed,
-                        onDrag = { vm.updateSpeed(it) },
-                        onRelease = { vm.sendSpeed() }
-                    )
-                    CompactSlider(
-                        label = "灵敏度",
-                        note = null,
-                        value = mode.sensitivity,
-                        onDrag = { vm.updateSensitivity(it) },
-                        onRelease = { vm.sendSensitivity() }
-                    )
-                }
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
+                CompactSlider(
+                    label = "速度",
+                    note = if (selectedQuandeng) "已选全灯类，上限 70" else null,
+                    // AV04-04：显示发送值——限幅时 UI 与帧一致
+                    value = if (selectedQuandeng) mode.speed.coerceAtMost(70) else mode.speed,
+                    onDrag = { vm.updateSpeed(it) },
+                    onRelease = { vm.sendSpeed() }
+                )
+                CompactSlider(
+                    label = "灵敏度",
+                    note = null,
+                    value = mode.sensitivity,
+                    onDrag = { vm.updateSensitivity(it) },
+                    onRelease = { vm.sendSensitivity() }
+                )
             }
         }
 

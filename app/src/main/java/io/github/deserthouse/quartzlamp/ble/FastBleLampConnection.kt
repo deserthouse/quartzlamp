@@ -209,6 +209,9 @@ class FastBleLampConnection(private val app: android.app.Application) : LampConn
             }
         }
 
+        // R44-03：本分支直接操作回调持有的 gatt（disconnect/close）——
+        // 权限由连接建立路径统一保证，lint 提示对齐 libs-src 既有豁免口径
+        @Suppress("MissingPermission")
         override fun onConnectSuccess(bleDevice: BleDevice, gatt: android.bluetooth.BluetoothGatt, status: Int) {
             if (stale()) {
                 // R44-03：过时成功只关闭**本回调持有的旧 gatt**（精确句柄）——

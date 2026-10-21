@@ -24,7 +24,7 @@
 对齐 OptIcon 基线（Gradle 9.5.1 / AGP 9.2.1 / Kotlin 2.2.10 / compileSdk 37 / minSdk 31 /
 material3 1.5.0-alpha22 M3E alpha 线 / `io.github.deserthouse.quartzlamp` / 单 :app 无 DI），
 签名凭据走 ~/.gradle/gradle.properties（QUARTZLAMP_* 前缀）。
-BLE 层已拍板（2026-10-15）：FastBle 2.3.4 厂商同款、AAR 内嵌 `app/libs/`、照抄厂商写参数，
+BLE 层已拍板（2026-10-15）：FastBle 2.3.4 厂商同款、源码收编 `app/libs-src/`（勘误 2026-10-21：早期 AAR 内嵌方案已改为源码收编）、照抄厂商写参数，
 外面套 callback→Flow 门面（`LampConnection`），FastBle 类不进 UI 层；自写/Nordic 仅作兜底不启用。
 
 ## 流程对齐（2026-10-21 用户指令：对齐上游 agents.md 严格控制）
