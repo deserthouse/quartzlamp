@@ -3,6 +3,7 @@ package io.github.deserthouse.quartzlamp.ui
 import io.github.deserthouse.quartzlamp.ble.ConnState
 import io.github.deserthouse.quartzlamp.ble.LampConnection
 import io.github.deserthouse.quartzlamp.ble.ScannedLamp
+import io.github.deserthouse.quartzlamp.ble.SessionReadyEvent
 import io.github.deserthouse.quartzlamp.ble.SendResult
 import io.github.deserthouse.quartzlamp.ble.SessionState
 import io.github.deserthouse.quartzlamp.protocol.LampFrames
@@ -22,8 +23,8 @@ class TestLampConnection : LampConnection {
     override val sessions = MutableStateFlow<Map<String, SessionState>>(emptyMap())
 
     /** 会话就绪事件（AV04-08）：connect() 同步发出（构造期同步路径的可测面） */
-    private val _sessionReady = MutableSharedFlow<String>(extraBufferCapacity = 16)
-    override val sessionReady: SharedFlow<String> = _sessionReady
+    private val _sessionReady = MutableSharedFlow<SessionReadyEvent>(extraBufferCapacity = 16)
+    override val sessionReady: SharedFlow<SessionReadyEvent> = _sessionReady
 
     val sentFrames = mutableListOf<String>()
     /** queryTimer(open) → 返回字节（null=读失败） */
@@ -33,11 +34,16 @@ class TestLampConnection : LampConnection {
     override fun stopScan() {}
     override fun connect(lamp: ScannedLamp) {
         sessions.value = sessions.value + (lamp.mac to SessionState.CONNECTED)
-        _sessionReady.tryEmit(lamp.mac)
+        _sessionReady.tryEmit(SessionReadyEvent(lamp.mac, 1))
     }
 
     override fun disconnect(mac: String) {
         sessions.value = sessions.value + (mac to SessionState.DISCONNECTED)
+    }
+
+    override suspend fun sendTo(mac: String, frame: ByteArray): Boolean {
+        sentFrames += LampFrames.hex(frame)
+        return sessions.value[mac] == SessionState.CONNECTED
     }
 
     override suspend fun send(frame: ByteArray): SendResult {

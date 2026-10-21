@@ -12,6 +12,9 @@ data class ScannedLamp(
     val rssi: Int,
 )
 
+/** 会话就绪事件（Q2）：携带会话身份的初始化通知 */
+data class SessionReadyEvent(val mac: String, val sessionId: Long)
+
 /** 聚合连接态（供标题栏等单值场景）：任一设备 CONNECTED 即 CONNECTED */
 enum class ConnState { DISCONNECTED, SCANNING, CONNECTING, CONNECTED }
 
@@ -56,10 +59,11 @@ interface LampConnection {
     val isDemo: Boolean get() = false
 
     /**
-     * 会话就绪事件（AV04-08）：连接成功且初始化序列（notify→对时）已排队时发出该 MAC。
+     * 会话就绪事件（AV04-08；Q2 携带身份）：连接成功且初始化序列（notify→对时）已排队时发出。
      * 每灯独立触发——第二盏接入也会发；扫描起停不产生此事件。
+     * sessionId=连接尝试 id（单调）——消费方可按会话身份去重/定向。
      */
-    val sessionReady: SharedFlow<String>
+    val sessionReady: SharedFlow<SessionReadyEvent>
 
     fun startScan()
     fun stopScan()
@@ -69,6 +73,12 @@ interface LampConnection {
 
     /** 断开指定设备（主动；取消其重连计划） */
     fun disconnect(mac: String)
+
+    /**
+     * 定向写单设备（Q2）：初始化序列按 MAC 定向，不再向全部旧灯广播。
+     * 会话不存在/未连接返回 false。
+     */
+    suspend fun sendTo(mac: String, frame: ByteArray): Boolean
 
     /**
      * 下发帧（遍历所有已连接设备，多灯广播——对齐厂商行为）。

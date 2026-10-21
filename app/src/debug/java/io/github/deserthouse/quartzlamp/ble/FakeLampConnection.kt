@@ -48,8 +48,8 @@ class FakeLampConnection : LampConnection {
     override val sessions: StateFlow<Map<String, SessionState>> = _sessions
 
     /** 会话就绪事件（AV04-08，与真实实现同语义：连接完成即发） */
-    private val _sessionReady = MutableSharedFlow<String>(extraBufferCapacity = 16)
-    override val sessionReady: SharedFlow<String> = _sessionReady
+    private val _sessionReady = MutableSharedFlow<SessionReadyEvent>(extraBufferCapacity = 16)
+    override val sessionReady: SharedFlow<SessionReadyEvent> = _sessionReady
 
     /** 两台假灯：多灯并存/断 A 不影响 B 的可测性 */
     val fakeLamps = listOf(
@@ -110,7 +110,9 @@ class FakeLampConnection : LampConnection {
         connectJobsByMac[lamp.mac] = scope.launch {
             delay(connectDelayMs)
             _sessions.update { it + (lamp.mac to SessionState.CONNECTED) }
-            _sessionReady.tryEmit(lamp.mac) // AV04-08：连接完成即发（每灯独立）
+            // Q2：携带会话身份（Fake 以每 MAC 连接序号近似 sessionId）
+            val seq = sessionSeq.computeIfAbsent(lamp.mac) { java.util.concurrent.atomic.AtomicLong() }.incrementAndGet()
+            _sessionReady.tryEmit(SessionReadyEvent(lamp.mac, seq))
             val c = java.util.Calendar.getInstance()
             send(
                 LampFrames.timeSync(
@@ -149,6 +151,14 @@ class FakeLampConnection : LampConnection {
             }
             refresh()
         }
+    }
+
+    private val sessionSeq = java.util.concurrent.ConcurrentHashMap<String, java.util.concurrent.atomic.AtomicLong>()
+
+    override suspend fun sendTo(mac: String, frame: ByteArray): Boolean {
+        if (_sessions.value[mac] != SessionState.CONNECTED) return false
+        recordFrame(LampFrames.hex(frame))
+        return true
     }
 
     override suspend fun send(frame: ByteArray): SendResult {

@@ -340,7 +340,14 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
             }
         }
         viewModelScope.launch {
-            lamp.sessionReady.collect { /* mac -> */ applyLampPickupFrames() }
+            lamp.sessionReady.collect { ev ->
+                // Q2/R44-04 附：初始化按 MAC 定向（不再向全部旧灯广播）
+                fire {
+                    lamp.sendTo(ev.mac, LampFrames.micSource(false))
+                    lamp.sendTo(ev.mac, LampFrames.micType(_mic.value.type))
+                    lamp.sendTo(ev.mac, LampFrames.micSensitivity(_mic.value.sensitivity))
+                }
+            }
         }
         // CR-1：全部会话离开 CONNECTED 时复位灯效投递位——重连后新会话从未收到 BC06，
         // 旧投递证据不得延续（否则"运行中"徽章虚标）
