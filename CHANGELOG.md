@@ -20,6 +20,18 @@ UI 源码专项复审（UI51）整改：控制组、关于页、图标余量与�
 - 定时「应用到灯」主操作、「从灯读取」次操作；无连接时电源按钮中性态；页面标题收敛。
 
 ## [Unreleased]
+## [0.5.3] - 2026-10-22 (versionCode 12)
+
+发布前代码复审的卫生修正。
+
+### 改进
+- 时间选择器大字默认输入式的状态初始化改以字号为键（移除组合期写状态反模式）。
+- 关于页链接行移除未用参数与灯效页未用导入（代码卫生）。
+
+### 已知问题
+- 多灯场景某灯断开又重连后，「运行中」徽章恢复显示（以其余持续在线灯为准）；
+  重连灯本身未补发当前灯效帧，其灯端状态未确认——硬件验收时留意。
+
 ## [0.5.2] - 2026-10-21 (versionCode 11)
 
 ### 修复
@@ -115,3 +127,4 @@ MVP 与 M1-M3 迭代（拆解/重建/控制闭环）。内部构建（未发布�
 [0.5.0]: https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.0
 [0.5.1]: https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.1
 [0.5.2]: https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.2
+[0.5.3]: https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.3
