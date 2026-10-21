@@ -101,7 +101,7 @@ fun SettingsScreen() {
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
-                AboutLinkRow(ctx, "项目主页", "github.com/deserthouse/quartzlamp") {
+                AboutLinkRow("项目主页", "github.com/deserthouse/quartzlamp") {
                     openUrl(ctx, "https://github.com/deserthouse/quartzlamp")
                 }
                 // 作者行（UI51-02：文字区 weight 预算，姓名主行/账号次行自然换行）
@@ -164,7 +164,7 @@ private fun openUrl(context: Context, url: String) {
 
 /** 标准链接行（UI51-02）：主标题 weight 预算 + 次行域名 + Launch 固定占位，整行 48dp 触区 */
 @Composable
-private fun AboutLinkRow(ctx: Context, label: String, urlText: String, onClick: () -> Unit) {
+private fun AboutLinkRow(label: String, urlText: String, onClick: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()

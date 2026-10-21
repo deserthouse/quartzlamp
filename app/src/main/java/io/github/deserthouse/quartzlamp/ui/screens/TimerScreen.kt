@@ -198,9 +198,9 @@ private fun TimerCard(
             initialHour = slot.hour, initialMinute = slot.minute, is24Hour = true
         )
         // V44-03：大字/短屏下表盘数字挤压——fontScale>1.3 默认键盘输入式，可切换
-        var useInput by remember { mutableStateOf(false) }
+        // （审查修正：组合期写状态反模式 → remember 以 fontScale 为键初始化）
         val fontScale = androidx.compose.ui.platform.LocalDensity.current.fontScale
-        if (fontScale > 1.3f) useInput = true
+        var useInput by remember(fontScale) { mutableStateOf(fontScale > 1.3f) }
         Dialog(
             onDismissRequest = { showPicker = false },
             properties = DialogProperties(usePlatformDefaultWidth = false)
