@@ -1,6 +1,7 @@
 package io.github.deserthouse.quartzlamp.ui
 
 import io.github.deserthouse.quartzlamp.ble.ConnState
+import io.github.deserthouse.quartzlamp.ble.DeliveryReport
 import io.github.deserthouse.quartzlamp.ble.LampConnection
 import io.github.deserthouse.quartzlamp.ble.ScannedLamp
 import io.github.deserthouse.quartzlamp.ble.SessionReadyEvent
@@ -46,12 +47,17 @@ class TestLampConnection : LampConnection {
         return sessions.value[mac] == SessionState.CONNECTED
     }
 
-    override suspend fun send(frame: ByteArray): SendResult {
-        sentFrames += LampFrames.hex(frame)
-        // 桩语义：有连接即全部成功，无连接=NoTarget（供结果驱动断言）
-        val n = sessions.value.count { it.value == SessionState.CONNECTED }
-        return if (n > 0) SendResult.SentToAll else SendResult.NoTarget
+    /** S1 测试钩子：该 MAC 投递失败（部分成功反例） */
+    var failMac: String? = null
+
+    override suspend fun sendDetailed(frame: ByteArray): DeliveryReport {
+        val targets = sessions.value.filterValues { it == SessionState.CONNECTED }.keys.toSet()
+        val hex = LampFrames.hex(frame)
+        sentFrames += hex
+        return DeliveryReport(targets, targets.associateWith { it != failMac })
     }
+
+    override suspend fun send(frame: ByteArray): SendResult = sendDetailed(frame).toSendResult()
 
     override suspend fun queryTimer(open: Boolean): ByteArray? {
         sentFrames += LampFrames.hex(LampFrames.timerQuery(open))

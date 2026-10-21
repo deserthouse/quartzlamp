@@ -313,30 +313,25 @@ class FastBleLampConnection(private val app: android.app.Application) : LampConn
         return q.write(frame)
     }
 
-    override suspend fun send(frame: ByteArray): SendResult {
+    override suspend fun sendDetailed(frame: ByteArray): DeliveryReport {
         val hex = LampFrames.hex(frame)
         Log.d("BLE-WRITE", hex)
         LampConnection.sharedFrameLog.tryEmit(hex)
         recordFrame(hex)
         // 帧#6（BC 09）律动流 → conflate；其余控制帧按序排队（R19-04）
         val reactive = frame.size > 1 && frame[0] == 0xBC.toByte() && frame[1] == 0x09.toByte()
-        val targets = queues.toList() // toList：防迭代中 teardown 并发修改
-        if (targets.isEmpty()) return SendResult.NoTarget
-        var okCount = 0
-        for ((_, q) in targets) {
-            val ok = if (reactive) {
-                q.postReactiveAwait(frame)
-            } else {
-                q.write(frame)
-            }
-            if (ok) okCount++
+        // S1：目标集合发起时冻结——新加入灯不属于本次操作目标
+        val targets = _sessions.value.filterValues { it == SessionState.CONNECTED }.keys.toSet()
+        if (targets.isEmpty()) return DeliveryReport(emptySet(), emptyMap())
+        val results = HashMap<String, Boolean>()
+        for (mac in targets) {
+            val q = queues[mac] ?: run { results[mac] = false; continue }
+            results[mac] = if (reactive) q.postReactiveAwait(frame) else q.write(frame)
         }
-        return when {
-            okCount == targets.size -> SendResult.SentToAll
-            okCount > 0 -> SendResult.SentToSome
-            else -> SendResult.Failed
-        }
+        return DeliveryReport(targets, results)
     }
+
+    override suspend fun send(frame: ByteArray): SendResult = sendDetailed(frame).toSendResult()
 
     override suspend fun queryTimer(open: Boolean): ByteArray? = try {
         withTimeout(TX_TIMEOUT_MS) {

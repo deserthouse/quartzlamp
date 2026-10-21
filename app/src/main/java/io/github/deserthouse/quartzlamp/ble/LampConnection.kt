@@ -12,6 +12,26 @@ data class ScannedLamp(
     val rssi: Int,
 )
 
+/**
+ * 逐灯投递报告（S1/R44-04）：目标集合在发起时冻结，结果逐 MAC。
+ * 聚合（All/Some/None）由数据推导，UI 不再消费折叠后的全局布尔位。
+ */
+data class DeliveryReport(
+    val targets: Set<String>,
+    val results: Map<String, Boolean>,
+) {
+    val allOk: Boolean get() = targets.isNotEmpty() && results.values.all { it }
+    val failedMacs: Set<String> get() = results.filterValues { !it }.keys
+
+    /** 兼容旧枚举（过渡期）：SendResult 语义保持不变 */
+    fun toSendResult(): SendResult = when {
+        allOk -> SendResult.SentToAll
+        results.values.any { it } -> SendResult.SentToSome
+        targets.isEmpty() -> SendResult.NoTarget
+        else -> SendResult.Failed
+    }
+}
+
 /** 会话就绪事件（Q2）：携带会话身份的初始化通知 */
 data class SessionReadyEvent(val mac: String, val sessionId: Long)
 
@@ -79,6 +99,12 @@ interface LampConnection {
      * 会话不存在/未连接返回 false。
      */
     suspend fun sendTo(mac: String, frame: ByteArray): Boolean
+
+    /**
+     * 逐灯投递（S1）：目标集合=发起时全部 CONNECTED 会话（冻结），
+     * 返回逐 MAC 真实结果。多灯部分失败不再折叠为全局成功。
+     */
+    suspend fun sendDetailed(frame: ByteArray): DeliveryReport
 
     /**
      * 下发帧（遍历所有已连接设备，多灯广播——对齐厂商行为）。

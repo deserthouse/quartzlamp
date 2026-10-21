@@ -161,13 +161,9 @@ class FakeLampConnection : LampConnection {
         return true
     }
 
-    override suspend fun send(frame: ByteArray): SendResult {
+    override suspend fun sendDetailed(frame: ByteArray): DeliveryReport {
         val hex = LampFrames.hex(frame)
-        Log.d("BLE-WRITE", hex)
-        LampConnection.sharedFrameLog.tryEmit(hex)
-        recordFrame(hex)
-        val n = _sessions.value.count { it.value == SessionState.CONNECTED }
-        val result = if (n == 0) SendResult.NoTarget else SendResult.SentToAll
+        _frameHistory.value = (listOf(hex) + _frameHistory.value).take(LampConnection.FRAME_HISTORY_LIMIT)
         // 假灯端存储：timerSet 帧被记录，queryTimer 才能读回（F11 写读闭环）
         if (frame.size == 9 && frame[0] == 0x7E.toByte() && frame[2] == 0x82.toByte()) {
             val hour = frame[3].toInt()
@@ -178,8 +174,11 @@ class FakeLampConnection : LampConnection {
                 lampTimers.remove(frame[6].toInt() == 0)
             }
         }
-        return result
+        val targets = _sessions.value.filterValues { it == SessionState.CONNECTED }.keys.toSet()
+        return DeliveryReport(targets, targets.associateWith { true })
     }
+
+    override suspend fun send(frame: ByteArray): SendResult = sendDetailed(frame).toSendResult()
 
     override suspend fun queryTimer(open: Boolean): ByteArray? {
         val query = LampFrames.timerQuery(open)
