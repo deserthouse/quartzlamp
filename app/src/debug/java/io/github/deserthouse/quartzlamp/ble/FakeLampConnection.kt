@@ -168,6 +168,9 @@ class FakeLampConnection : LampConnection {
 
     override suspend fun sendDetailed(frame: ByteArray): DeliveryReport {
         val hex = LampFrames.hex(frame)
+        // R1 解锁（codex 定位缺口）：与 send 同源打 BLE-WRITE——logcat 帧对照（BC06 一致性等）依赖此日志
+        android.util.Log.d("BLE-WRITE", hex)
+        LampConnection.sharedFrameLog.tryEmit(hex)
         _frameHistory.value = (listOf(hex) + _frameHistory.value).take(LampConnection.FRAME_HISTORY_LIMIT)
         // 假灯端存储：timerSet 帧被记录，queryTimer 才能读回（F11 写读闭环）
         if (frame.size == 9 && frame[0] == 0x7E.toByte() && frame[2] == 0x82.toByte()) {

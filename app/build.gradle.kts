@@ -15,8 +15,8 @@ android {
         applicationId = "io.github.deserthouse.quartzlamp"
         minSdk = 31
         targetSdk = 37
-        versionCode = 12
-        versionName = "0.5.3"
+        versionCode = 13
+        versionName = "0.5.4"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 

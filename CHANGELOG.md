@@ -4,6 +4,8 @@
 内部开发过程细节见 `project_status.md` 与本地审查档案（不入公开仓）。
 
 ## [Unreleased]
+## [0.5.4] - 2026-10-22 (versionCode 13)
+
 
 ### 修复
 - 灯效列表恢复纵向测量与排列，修正多个分组和卡片叠在同一位置、前面的效果无法点选的问题；保留单选语义和原有灯效索引。
@@ -14,8 +16,11 @@
 - 石英色板调整为雾紫强调、中性容器与暖砂点缀，显式补齐深浅模式的容器和固定强调色；大面积卡片使用表面容器色。
 - 新增容器文本对比度和明度层级检查；短屏、深色与两倍字号的模拟器布局回归通过。
 
+### 开发侧
+- 假灯实现补齐 BLE-WRITE 日志与共享帧流（此前逐灯投递不产生日志，帧一致性验证被卡）。
+
 ### 验证边界
-- 本次为开发修改，尚未进入新版本发布构建。真 BLE/真灯、完整 TalkBack、主题图标及此前的帧一致性欠账继续保留。
+- 真 BLE/真灯、完整 TalkBack、主题图标与 TimeInput 往返设值等欠账继续保留（见 project_status）。
 
 ## [0.5.3] - 2026-10-22 (versionCode 12)
 
@@ -133,3 +138,4 @@ MVP 与 M1-M3 迭代（拆解/重建/控制闭环）。内部构建（未发布�
 [0.5.1]: https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.1
 [0.5.2]: https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.2
 [0.5.3]: https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.3
+[0.5.4]: https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.4
