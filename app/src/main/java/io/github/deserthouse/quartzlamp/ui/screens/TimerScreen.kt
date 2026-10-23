@@ -129,7 +129,7 @@ private fun TimerCard(
                         AppViewModel.TimerPhase.Idle ->
                             if (slot.dirty) "草稿未应用"
                             else if (slot.loaded) "已从灯读回" + (slot.readFrom?.let { "（$it）" } ?: "")
-                            else "未设置"
+                            else "未设置（时间为默认值）"
                     },
                     modifier = Modifier
                         .weight(1.2f)
@@ -234,15 +234,16 @@ private fun TimerCard(
  *  用无 onClick 的 Surface + foundation clickable（无最小尺寸强制）保证 7 枚单行 */
 @Composable
 private fun WeekChip(label: String, selected: Boolean, onTap: () -> Unit) {
+    val chipShape = RoundedCornerShape(10.dp) // QL-07：Surface shape 与 clip 同源，避免双份字面量漂移
     Surface(
-        shape = RoundedCornerShape(10.dp),
+        shape = chipShape,
         color = if (selected) MaterialTheme.colorScheme.primary
         else MaterialTheme.colorScheme.surface,
         contentColor = if (selected) MaterialTheme.colorScheme.onPrimary
         else MaterialTheme.colorScheme.onSurfaceVariant,
         border = if (selected) null else BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         modifier = Modifier
-            .clip(RoundedCornerShape(10.dp))
+            .clip(chipShape)
             .toggleable(
                 value = selected,
                 role = Role.Checkbox,
