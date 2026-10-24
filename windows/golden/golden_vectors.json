@@ -1,0 +1,86 @@
+{
+  "meta": {
+    "purpose": "语言无关黄金报文 —— Android 与 Windows 双端帧一致性契约",
+    "expectationSources": [
+      "app/src/test/java/io/github/deserthouse/quartzlamp/protocol/LampFramesTest.kt（独立期望源）",
+      "docs/ble_protocol.md 帧表",
+      "2026-10-21/24 AVD 走查实发帧实录（BC040600D201F4000055 / BC0602008B55 / BC08014655 / 7E0882081E000015EF）"
+    ],
+    "implementationSources": [
+      "app/src/main/java/io/github/deserthouse/quartzlamp/protocol/LampFrames.kt",
+      "windows/src/QuartzLamp.Protocol/LampFrames.cs"
+    ]
+  },
+  "vectors": [
+    { "id": "power_on", "op": "Power", "args": { "on": true }, "hex": "BC01010155" },
+    { "id": "power_off", "op": "Power", "args": { "on": false }, "hex": "BC01010055" },
+
+    { "id": "color_sat100_h300", "op": "ColorStatic", "args": { "h": 300, "s": 1.0 }, "hex": "BC0406012C03E8000055" },
+    { "id": "color_zero", "op": "ColorStatic", "args": { "h": 0, "s": 0.0 }, "hex": "BC040600000000000055" },
+    { "id": "color_audit_sat50_h210", "op": "ColorStatic", "args": { "h": 210, "s": 0.5 }, "hex": "BC040600D201F4000055" },
+    { "id": "color_hue_max", "op": "ColorStatic", "args": { "h": 359, "s": 1.0 }, "hex": "BC0406016703E8000055" },
+    { "id": "color_hue_360_rejected", "op": "ColorStatic", "args": { "h": 360, "s": 0.5 }, "throws": "ArgumentOutOfRangeException" },
+
+    { "id": "brightness_min_coerced", "op": "Brightness", "args": { "v": 0 }, "hex": "BC050600030000000055" },
+    { "id": "brightness_floor", "op": "Brightness", "args": { "v": 3 }, "hex": "BC050600030000000055" },
+    { "id": "brightness_100", "op": "Brightness", "args": { "v": 100 }, "hex": "BC050600640000000055" },
+    { "id": "brightness_255_encoding", "op": "Brightness", "args": { "v": 255 }, "hex": "BC050601000000000055" },
+
+    { "id": "mode_1", "op": "ModeSelect", "args": { "index": 1 }, "hex": "BC0602000155" },
+    { "id": "mode_2_walkthrough", "op": "ModeSelect", "args": { "index": 2 }, "hex": "BC0602000255" },
+    { "id": "mode_137_rainbow", "op": "ModeSelect", "args": { "index": 137 }, "hex": "BC0602008955" },
+    { "id": "mode_139_walkthrough", "op": "ModeSelect", "args": { "index": 139 }, "hex": "BC0602008B55" },
+    { "id": "mode_153_last", "op": "ModeSelect", "args": { "index": 153 }, "hex": "BC0602009955" },
+    { "id": "mode_255_carry", "op": "ModeSelect", "args": { "index": 255 }, "hex": "BC0602010055", "note": "/255 编码进位：i=255 -> (1,0)；0x00FF 反解同为 255 但构造端不产生（编码歧义已记录）" },
+    { "id": "mode_256_carry", "op": "ModeSelect", "args": { "index": 256 }, "hex": "BC0602010155" },
+
+    { "id": "speed_0", "op": "Speed", "args": { "v": 0 }, "hex": "BC08010055" },
+    { "id": "speed_70_audit", "op": "Speed", "args": { "v": 70 }, "hex": "BC08014655" },
+    { "id": "speed_86_plain", "op": "Speed", "args": { "v": 86 }, "hex": "BC08015655" },
+    { "id": "speed_100", "op": "Speed", "args": { "v": 100 }, "hex": "BC08016455" },
+    { "id": "speed_quandeng_capped_70", "op": "Speed", "args": { "v": 90, "quandengMode": true }, "hex": "BC08014655" },
+    { "id": "speed_101_rejected", "op": "Speed", "args": { "v": 101 }, "throws": "ArgumentOutOfRangeException" },
+    { "id": "speed_negative_rejected", "op": "Speed", "args": { "v": -1 }, "throws": "ArgumentOutOfRangeException" },
+
+    { "id": "reactive_h180_s50", "op": "ReactiveColor", "args": { "h": 180, "s": 0.5 }, "hex": "BC090600B401F5000055" },
+
+    { "id": "sensitivity_50", "op": "Sensitivity", "args": { "v": 50 }, "hex": "BC10013255" },
+    { "id": "sensitivity_101_rejected", "op": "Sensitivity", "args": { "v": 101 }, "throws": "ArgumentOutOfRangeException" },
+
+    { "id": "mic_source_lamp", "op": "MicSource", "args": { "phoneMic": false }, "hex": "BC0F010055" },
+    { "id": "mic_source_phone", "op": "MicSource", "args": { "phoneMic": true }, "hex": "BC0F010155" },
+
+    { "id": "mic_type_classic", "op": "MicType", "args": { "type": 1 }, "hex": "BC11010155" },
+    { "id": "mic_type_soft", "op": "MicType", "args": { "type": 2 }, "hex": "BC11010255" },
+    { "id": "mic_type_dynamic", "op": "MicType", "args": { "type": 3 }, "hex": "BC11010355" },
+    { "id": "mic_type_disco", "op": "MicType", "args": { "type": 4 }, "hex": "BC11010455" },
+    { "id": "mic_type_5_rejected", "op": "MicType", "args": { "type": 5 }, "throws": "ArgumentOutOfRangeException" },
+
+    { "id": "mic_sens_0", "op": "MicSensitivity", "args": { "v": 0 }, "hex": "BC12010055" },
+    { "id": "mic_sens_100", "op": "MicSensitivity", "args": { "v": 100 }, "hex": "BC12016455" },
+    { "id": "mic_sens_negative_rejected", "op": "MicSensitivity", "args": { "v": -1 }, "throws": "ArgumentOutOfRangeException" },
+
+    { "id": "rgb_255_0_128", "op": "RgbDirect", "args": { "r": 255, "g": 0, "b": 128 }, "hex": "7E070503FF008000EF" },
+    { "id": "rgb_0_255_128", "op": "RgbDirect", "args": { "r": 0, "g": 255, "b": 128 }, "hex": "7E07050300FF8000EF" },
+
+    { "id": "timer_set_0730_monwedfri", "op": "TimerSet", "args": { "hour": 7, "minute": 30, "open": true, "weekBits": 21 }, "hex": "7E0882071E000015EF" },
+    { "id": "timer_set_0830_audit", "op": "TimerSet", "args": { "hour": 8, "minute": 30, "open": true, "weekBits": 21 }, "hex": "7E0882081E000015EF" },
+    { "id": "timer_set_2359_close_allweek", "op": "TimerSet", "args": { "hour": 23, "minute": 59, "open": false, "weekBits": 127 }, "hex": "7E0882173B00017FEF" },
+    { "id": "timer_set_0000_open_noweek", "op": "TimerSet", "args": { "hour": 0, "minute": 0, "open": true, "weekBits": 0 }, "hex": "7E08820000000000EF" },
+    { "id": "timer_hour_24_rejected", "op": "TimerSet", "args": { "hour": 24, "minute": 0, "open": true, "weekBits": 0 }, "throws": "ArgumentOutOfRangeException" },
+    { "id": "timer_minute_60_rejected", "op": "TimerSet", "args": { "hour": 7, "minute": 60, "open": true, "weekBits": 0 }, "throws": "ArgumentOutOfRangeException" },
+
+    { "id": "timer_query_open", "op": "TimerQuery", "args": { "open": true }, "hex": "7E0882FFFFFF0000EF" },
+    { "id": "timer_query_close", "op": "TimerQuery", "args": { "open": false }, "hex": "7E0882FFFFFF0100EF" },
+
+    { "id": "time_sync_142530_wed", "op": "TimeSync", "args": { "hour": 14, "minute": 25, "second": 30, "weekdaySun0": 3 }, "hex": "7E07830E191E03FFEF" },
+
+    { "id": "parse_set_0730_w21", "op": "ParseTimerRead", "args": { "bytes": "000000071E00001500" }, "expect": { "isSet": true, "hour": 7, "minute": 30, "weekBits": 21 } },
+    { "id": "parse_unset_ff", "op": "ParseTimerRead", "args": { "bytes": "000000FF1E00001500" }, "expect": { "isSet": false, "hour": -1, "minute": 30, "weekBits": 21 } },
+    { "id": "parse_len8_rejected", "op": "ParseTimerRead", "args": { "bytes": "0000071E00001500" }, "expectNull": true },
+    { "id": "parse_len10_rejected", "op": "ParseTimerRead", "args": { "bytes": "000000071E0000150000" }, "expectNull": true },
+    { "id": "parse_hour24_rejected", "op": "ParseTimerRead", "args": { "bytes": "000000181E00001500" }, "expectNull": true },
+    { "id": "parse_minute60_rejected", "op": "ParseTimerRead", "args": { "bytes": "000000073C00001500" }, "expectNull": true },
+    { "id": "parse_week128_rejected", "op": "ParseTimerRead", "args": { "bytes": "000000071E00008000" }, "expectNull": true }
+  ]
+}
