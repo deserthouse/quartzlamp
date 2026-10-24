@@ -1,8 +1,17 @@
 # quartzlamp — 拾音灯控制器重建项目
 
 > 本文件是唯一当前状态源（架构/功能/TODO/文件拓扑），阶段完成后原地更新。
-> 当前阶段（2026-10-22）：**0.5.6(15) 已发布（出包即发版契约）——主题图标 mono 同源剪影昼夜分态上线；launcher 昼/夜图标实屏核验通过（浅=睁眼/深=闭眼）。** 当前状态与验证债仅以§7为准。
-> 最新证据：`tests/review_2026-10-22/themed_icon/`（launcher 双态+应用深浅色 sanity，本地保留）。审查/设计依据见 `docs/review_2026-10-22_ui_repair.md`（0.5.4 内容，已上线）。旧审查摘要移至文末历史快照，不代表当前待办。
+> 当前 Android 阶段（2026-10-24）：**0.5.7(16) 已发布**，具体实现与验证债以§7为准。Windows 移植处于立项规划阶段，见下方“Windows 客户端规划”；尚无 Windows 产品实现。
+> Android 历史证据：`tests/review_2026-10-22/themed_icon/`（launcher 双态+应用深浅色 sanity，本地保留）。UI 依据见 `docs/review_2026-10-22_ui_repair.md`；最新 Android 验证边界见§7。旧审查摘要保留为历史快照。
+
+## Windows 客户端规划（2026-10-24，本地）
+
+- 已完成独立立项报告：`docs/workorder_windows_port_2026-10-24.md`（本地私有工作材料，按既有规则忽略，不作为公开仓缺失文档要求）。本地留痕 ref：`refs/local-reports/windows-port-plan-2026-10-24`。
+- 功能基准为当前 Android 设备/多灯、153 灯效、灯载拾音、两槽硬件定时与设置；手机麦/本地音乐是已移除的历史功能，不自动恢复。
+- 推荐 C#/.NET 10 LTS + WinUI 3/Windows App SDK Stable + Windows 原生 BLE/GATT；同仓 windows/ 为目标拓扑，尚未创建源工程。Android M3E 与 FastBle 保持现有边界。
+- 系统接入采用可选共用 LampArray 提供端与用户态 BLE 桥接。每灯先按整体灯区，不承诺逐灯珠/统一高帧率。先验证运行态写入安全性、定时/拾音仲裁和正常签名部署。
+- 工作顺序：W0 工具链/黄金样本→W1 真灯最小闭环→W2 会话/多灯→W3 全功能→W4 Fluent→W5 系统接管→W6 安装交付；共用驱动部署门在 W0 同时研究。
+- 本轮核对本地/远端 main 均为 d5a26e2；没有产品代码修改、Android 构建、设备写入或视觉验收。报告证据：`tests/review_2026-10-24/windows-port/manifest.json`（本地私有）。
 
 ## 0. 项目定位
 
