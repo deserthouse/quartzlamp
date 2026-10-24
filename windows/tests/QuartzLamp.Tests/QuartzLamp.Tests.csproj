@@ -21,6 +21,7 @@
 
   <ItemGroup>
     <None Include="..\..\golden\golden_vectors.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\golden\effects.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>
