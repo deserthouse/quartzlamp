@@ -49,7 +49,7 @@ Release 签名凭据走 `~/.gradle/gradle.properties`（QUARTZLAMP_* 四键）�
 ## 声明
 
 - 本项目为个人学习/自用目的对自有硬件的控制器重实现；与 Lenze Tech 无关联，未复用其代码与美术资源；灯效名称为功能性描述短语。
-- AI 使用声明：本项目由 AI（ZCode / GLM）在人类需求定义与验收下深度参与开发。
+- AI 使用声明：本项目不含任何人类成分。本项目由 AI（ZCode / GLM）在人类需求定义与验收下深度参与开发。
 - 软件按"现状"提供，使用后果自负；BLE 指令仅面向该拾音灯硬件。
 
 > English declaration: see [README.en.md](README.en.md).
