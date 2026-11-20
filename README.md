@@ -2,14 +2,16 @@
 
 **中文** · [English](README.en.md)
 
-<p align="center">
-  <img src="docs/img/icon_light.png" width="128" alt="QuartzLamp 图标（昼）" />
-  <img src="docs/img/icon_dark.png" width="128" alt="QuartzLamp 图标（夜）" />
-</p>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/icon_dark.png">
+  <img src="docs/img/icon_light.png" width="96" alt="QuartzLamp">
+</picture>
 
 Lenze Tech「拾音灯」硬件的自有 Android 控制器——Material 3 Expressive 重制版。
 
 > **当前状态**：[v0.5.7](https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.7)（versionCode 16，2026-10-24；变更明细见 [CHANGELOG](CHANGELOG.md)）；模拟器与协议层已验，真灯验收进度与边界以 `project_status.md` §7 与 `docs/acceptance.md` 为准——支持硬件为 Lenze Tech 拾音灯（蓝牙 BLE）。源码构建见下文。
+
+[源码构建](#构建) · [真灯验收记录](docs/acceptance.md) · [更新日志](CHANGELOG.md)
 
 ## 功能（三 tab：设备 / 灯效 / 定时）
 
@@ -49,12 +51,15 @@ Release 签名凭据走 `~/.gradle/gradle.properties`（QUARTZLAMP_* 四键）�
 ## 声明
 
 - 本项目为个人学习/自用目的对自有硬件的控制器重实现；与 Lenze Tech 无关联，未复用其代码与美术资源；灯效名称为功能性描述短语。
-- AI 使用声明：本项目不含任何人类成分。本项目由 AI（ZCode / GLM）在人类需求定义与验收下深度参与开发。
 - 软件按"现状"提供，使用后果自负；BLE 指令仅面向该拾音灯硬件。
 
 > English declaration: see [README.en.md](README.en.md).
 
 ---
+
+## AI 使用声明
+
+本项目不含任何人类成分。AI（ZCode / GLM）参与开发，维护者负责需求定义与验收。
 
 ## 名字的彩蛋
 

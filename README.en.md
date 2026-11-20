@@ -2,15 +2,17 @@
 
 [中文](README.md) · **English**
 
-<p align="center">
-  <img src="docs/img/icon_light.png" width="128" alt="QuartzLamp icon (day)" />
-  <img src="docs/img/icon_dark.png" width="128" alt="QuartzLamp icon (night)" />
-</p>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/img/icon_dark.png">
+  <img src="docs/img/icon_light.png" width="96" alt="QuartzLamp">
+</picture>
 
 An unofficial Material 3 Expressive Android controller for the Lenze Tech
 sound-reactive lamp ("拾音灯"), rebuilt from scratch.
 
 > **Status**: [v0.5.7](https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.7) (versionCode 16, 2026-10-24; see [CHANGELOG](CHANGELOG.md)); emulator and protocol layers verified — real-lamp acceptance progress and boundaries per `project_status.md` §7 and `docs/acceptance.md`. Supported hardware: the Lenze Tech sound-reactive lamp (Bluetooth BLE). Building from source below.
+
+[Build from source](#build) · [Hardware acceptance notes](docs/acceptance.md) · [Changelog](CHANGELOG.md)
 
 ## Features (three tabs: Device / Effects / Timer)
 
@@ -55,12 +57,15 @@ Release signing reads `~/.gradle/gradle.properties` (four `QUARTZLAMP_*` keys);
 ## Declaration
 
 - This is an independent reimplementation of a controller for personally owned hardware, for learning and personal use. Not affiliated with Lenze Tech; no vendor code or assets reused. Effect names are functional descriptive phrases.
-- AI disclosure: developed with substantial AI assistance (ZCode / GLM) under human direction and acceptance.
 - Provided as-is, without warranty of any kind; use at your own risk. BLE commands target this lamp hardware only.
 
 > 中文声明见 [README.md](README.md)。
 
 ---
+
+## AI disclosure
+
+This project contains no human ingredients. AI (ZCode / GLM) assisted with development. The maintainer defines requirements and reviews the result.
 
 ## About the Name
 
