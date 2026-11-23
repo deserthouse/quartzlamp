@@ -24,6 +24,24 @@ import kotlin.coroutines.resumeWithException
 class QueueClosedException(message: String = "queue closed") : IllegalStateException(message)
 
 /**
+ * 单步恢复门（幂等）：传输层把"结果"送回队列的唯一出口。
+ * FastBle 每个操作带 5s 超时——到点先回调失败，真实结果若迟到会对**同一步**再回调一次；
+ * 对已恢复的 continuation 二次 resume 抛 Already resumed（在主线程 Handler 里即崩溃）。
+ * 首次回调生效，其后静默丢弃。以原子量把关，不依赖"回调都来自同一线程"的假设。
+ */
+private class ResumeGate(private val c: CancellableContinuation<Unit>) {
+    private val done = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    fun resume() {
+        if (done.compareAndSet(false, true)) c.resume(Unit)
+    }
+
+    fun fail(message: String) {
+        if (done.compareAndSet(false, true)) c.resumeWithException(RuntimeException(message))
+    }
+}
+
+/**
  * 每设备 GATT 操作串行队列（R19-04）：notify 初始化、时间同步、普通控制写、定时查询事务
  * 统一经此队列——**一次至多一个在途操作**，回调/失败/超时后才推进。
  * FastBle 2.3.4 无全局操作队列（BleBluetooth 按特征覆盖写回调），此前"send 直写+查询 Mutex"
@@ -93,7 +111,7 @@ class GattOpQueue(
                             try {
                                 val ok = execStep("notify") { c ->
                                     transport.enableNotify { ok, err ->
-                                        if (ok) c.resume(Unit) else c.resumeWithException(RuntimeException("notify fail: $err"))
+                                        if (ok) c.resume() else c.fail("notify fail: $err")
                                     }
                                 }
                                 op.result.complete(ok)
@@ -108,7 +126,7 @@ class GattOpQueue(
                                 // 时连参数都不求值，post 投递的帧会被整体跳过
                                 val ok = execStep("write") { c ->
                                     transport.write(op.frame) { ok, err ->
-                                        if (ok) c.resume(Unit) else c.resumeWithException(RuntimeException("write fail: $err"))
+                                        if (ok) c.resume() else c.fail("write fail: $err")
                                     }
                                 }
                                 op.result.complete(ok)
@@ -122,7 +140,7 @@ class GattOpQueue(
                                 if (pendingReactive === op.holder) pendingReactive = null
                                 val ok = execStep("reactive") { c ->
                                     transport.write(op.holder.frame) { ok, err ->
-                                        if (ok) c.resume(Unit) else c.resumeWithException(RuntimeException("reactive fail: $err"))
+                                        if (ok) c.resume() else c.fail("reactive fail: $err")
                                     }
                                 }
                                 op.holder.waiters.forEach { it.complete(ok) } // 共享等待者一并结算（Q1.4）
@@ -139,15 +157,15 @@ class GattOpQueue(
                                 var readData: ByteArray? = null
                                 val wok = execStep("query-write") { c ->
                                     transport.write(op.frame) { ok, err ->
-                                        if (ok) c.resume(Unit) else c.resumeWithException(RuntimeException("query write fail: $err"))
+                                        if (ok) c.resume() else c.fail("query write fail: $err")
                                     }
                                 }
                                 val rok = wok && execStep("query-read") { c ->
                                     transport.read { data, err ->
                                         if (data != null) {
                                             readData = data
-                                            c.resume(Unit)
-                                        } else c.resumeWithException(RuntimeException("query read fail: $err"))
+                                            c.resume()
+                                        } else c.fail("query read fail: $err")
                                     }
                                 }
                                 op.result.complete(if (rok) readData else null)
@@ -270,9 +288,9 @@ class GattOpQueue(
             null
         }
 
-    /** 单步执行：回调门 + 超时；结果折为 Boolean（不吞取消） */
-    private suspend fun execStep(phase: String, call: (CancellableContinuation<Unit>) -> Unit): Boolean = try {
-        withTimeout(opTimeoutMs) { suspendCancellableCoroutine<Unit> { c -> call(c) } }
+    /** 单步执行：回调门 + 超时；结果折为 Boolean（不吞取消）。恢复只经 [ResumeGate]，迟到/重复回调被丢弃 */
+    private suspend fun execStep(phase: String, call: (ResumeGate) -> Unit): Boolean = try {
+        withTimeout(opTimeoutMs) { suspendCancellableCoroutine<Unit> { c -> call(ResumeGate(c)) } }
         true
     } catch (e: TimeoutCancellationException) {
         fail("$phase: timeout（>${opTimeoutMs}ms）")

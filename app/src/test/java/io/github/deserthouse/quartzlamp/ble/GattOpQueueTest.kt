@@ -31,6 +31,8 @@ class GattOpQueueTest {
         val ops = mutableListOf<String>()
         val pendingWriteAcks = ArrayDeque<(Boolean, String?) -> Unit>()
         var pendingRead: ((ByteArray?, String?) -> Unit)? = null
+        /** 最近一次 read 的回调句柄（注入迟到的二次回调用） */
+        var lastReadDone: ((ByteArray?, String?) -> Unit)? = null
 
         override fun enableNotify(done: (Boolean, String?) -> Unit) {
             ops += "N"; done(true, null)
@@ -40,7 +42,7 @@ class GattOpQueueTest {
             pendingWriteAcks.addLast(done)
         }
         override fun read(done: (ByteArray?, String?) -> Unit) {
-            ops += "R"; pendingRead = done
+            ops += "R"; pendingRead = done; lastReadDone = done
         }
         fun ack(ok: Boolean = true) = pendingWriteAcks.removeFirst()(ok, null)
         fun ackRead(data: ByteArray?) {
@@ -176,6 +178,72 @@ class GattOpQueueTest {
         q.close()
         assertTrue(queuedResult != null)
         assertEquals("排队等待者收到的应是显式 false", false, queuedResult)
+    }
+
+    // ━━━ 传输层回调幂等（2026-11 审查：慢 ACK 崩溃）━━━
+    //
+    // FastBle 每个操作带 5s 超时：到点先回调失败（TimeoutException）；真实结果若在 5s 后才到，
+    // 会对**同一个回调对象**再回调一次。第二次恢复已完成的 continuation 会抛 Already resumed——
+    // 发生在主线程 Handler 里即崩溃。以下用例对同一步先后注入失败与成功两次回调。
+
+    @Test
+    fun `写_超时失败后补发成功_二次回调不得抛且不改写结果`() = runTest {
+        val t = FakeTransport()
+        val q = GattOpQueue("t", t, 60_000)
+        q.start(backgroundScope + UnconfinedTestDispatcher(testScheduler))
+        val result = CompletableDeferred<Boolean>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            result.complete(q.write(f(0xBC, 1)))
+        }
+        val late = t.pendingWriteAcks.first()
+        t.ack(ok = false) // 5s 超时：本步失败
+        assertEquals(false, result.getCompleted())
+
+        late(true, null) // 迟到的真实 ACK
+        assertEquals("首次回调的结果不被迟到回调改写", false, result.getCompleted())
+    }
+
+    @Test
+    fun `notify_超时失败后补发成功_二次回调不得抛`() = runTest {
+        val t = FakeTransport()
+        // notify 的 done 由 enableNotify 同步调用；用延迟回调的变体传输模拟两次回调
+        var first: ((Boolean, String?) -> Unit)? = null
+        var calls = 0
+        val delayed = object : GattTransport {
+            override fun enableNotify(done: (Boolean, String?) -> Unit) { first = done }
+            override fun write(frame: ByteArray, done: (Boolean, String?) -> Unit) { calls++ }
+            override fun read(done: (ByteArray?, String?) -> Unit) { calls++ }
+        }
+        val q = GattOpQueue("t", delayed, 60_000)
+        q.start(backgroundScope + UnconfinedTestDispatcher(testScheduler))
+        val result = CompletableDeferred<Boolean>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            result.complete(q.notify()) // 连接建立的首个操作，此前从未被直接执行
+        }
+        val done = first ?: error("notify 未发起")
+        done(false, "timeout")
+        assertEquals(false, result.getCompleted())
+
+        done(true, null) // 迟到的描述符写成功
+        assertEquals(false, result.getCompleted())
+        assertEquals("二次回调不得引发额外传输操作", 0, calls)
+    }
+
+    @Test
+    fun `读_超时失败后补发数据_二次回调不得抛`() = runTest {
+        val t = FakeTransport()
+        val q = GattOpQueue("t", t, 60_000)
+        q.start(backgroundScope + UnconfinedTestDispatcher(testScheduler))
+        val result = CompletableDeferred<ByteArray?>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) {
+            result.complete(q.query(f(0x7E, 1)))
+        }
+        t.ack() // 查询写成功 → 读发起
+        t.ackRead(null) // 读超时：data=null
+        assertEquals(null, result.getCompleted())
+
+        t.lastReadDone?.invoke(f(0x7E, 0x08, 0x82, 7, 30, 0, 0, 0x15, 0xEF), null) // 迟到的读数据
+        assertEquals("迟到的读数据不得回填已结算的结果", null, result.getCompleted())
     }
 
     // ━━━ Q1 终态所有权矩阵（R44-01/T44-01）━━━
