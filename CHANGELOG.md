@@ -5,6 +5,32 @@
 
 ## [Unreleased]
 
+### 修复
+- 意外断连后的自动重连此前在真实设备路径上一次都不会发起（会话停在"重连中"），现已恢复：
+  轮间退避 4s、预算 3 轮、可随时取消，预算耗尽回到"未连接"。
+- 重连周期结束后再次点"连接"，若该次连接失败会卡在"连接中"，现在正确回到"未连接"。
+- 在已连接或连接中的设备上重复触发"连接"，不再产生并行的连接尝试。
+- 链路较差、设备应答晚于传输层 5s 操作超时的时候，迟到的结果回调不再导致应用崩溃。
+- 定时槽位读到"未设置"时草稿修订号保持单调递增（此前归零，极端时序下在途的保存结果可能匹配到内容不同的新草稿）。
+- 定时"从灯读取"的目标名称在重新扫描后不再退化为 MAC 地址，与设备列表一致。
+
+### 改进
+- 应用在前台之外完成重连（如退出界面后灯重新上线）时，重开后补发一次灯端拾音配置。
+- 重连的单轮兜底超时按传输层自带的重试推导，避免在传输层仍在重试时叠发连接。
+  对外口径更正为"3 轮重连，每轮内含传输层自带的 3 次重试"（此前文档写作"3×4s"）。
+
+### 开发侧
+- 自动重连等会话状态机逻辑纳入单元测试，直接覆盖发布包内的真实实现——此前只有开发用假灯的
+  契约测试，真实实现零直接覆盖，上述重连缺陷因此长期未被发现。GATT 队列的迟到回调、定时与拾音的
+  ViewModel 路径补回归测试；灯效分类与跨端黄金数据改为逐项对照。
+- 仓库内新增 Windows 客户端的协议库、GATT 队列与会话层及对应测试（尚无可用界面，未发布）；
+  修正其重连预算（改为每次意外断连重新获得完整预算）、终态后无法再次连接、订阅前断连漏接等问题。
+
+### 验证边界
+- 上述重连相关修复的证据为源码走查 + 发布包内真实实现的单元测试（虚拟时钟、脚本化回调）；
+  **尚未经真机 / 真灯验证**，射频条件下的重连表现待 `docs/acceptance.md` 第 9 步确认。
+  视觉项本轮无变化、未重新验证。
+
 ## [0.5.7] - 2026-10-24 (versionCode 16)
 
 ### 改进
@@ -150,7 +176,7 @@ UI 源码专项复审（UI51）整改：控制组、关于页、图标余量与�
 
 ## [0.4.2] - 2026-10-21 (versionCode 6)
 
-图标接入（红翅绿鸠 adaptive+themed；来源表述后经 0.5.1 更正，见 Unreleased）、亮度百分比显示、About 英文名资源化。
+图标接入（红翅绿鸠 adaptive+themed；来源表述后经 0.5.1 更正，见 0.5.1 条目）、亮度百分比显示、About 英文名资源化。
 内部构建（未发布渠道）。
 
 ## [0.4.1] - 2026-10-21 (versionCode 5)
@@ -175,9 +201,12 @@ AVD 复审整改：构造期 NPE、定时互斥阶段模型、灯效页整页滚
 
 MVP 与 M1-M3 迭代（拆解/重建/控制闭环）。内部构建（未发布渠道）。
 
-[Unreleased]: https://github.com/deserthouse/quartzlamp/compare/v0.5.0...HEAD
+[Unreleased]: https://github.com/deserthouse/quartzlamp/compare/v0.5.7...HEAD
 [0.5.0]: https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.0
 [0.5.1]: https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.1
 [0.5.2]: https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.2
 [0.5.3]: https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.3
 [0.5.4]: https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.4
+[0.5.5]: https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.5
+[0.5.6]: https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.6
+[0.5.7]: https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.7

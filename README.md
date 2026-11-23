@@ -16,7 +16,8 @@ Lenze Tech「拾音灯」硬件的自有 Android 控制器——Material 3 Expre
 ## 功能（三 tab：设备 / 灯效 / 定时）
 
 - **设备**：电源主操作 + 亮度（全局参数，单色/灯效模式均生效）+ 连接管理
-  （多灯并行、行级连接/断开/重连，意外断连有限自动重连 3×4s、主动断开不抢连）+
+  （多灯并行、行级连接/断开/重连，意外断连自动重连 3 轮、轮间 4s、可随时取消——
+  主线已修复，待真机复验；主动断开不抢连）+
   灯端拾音配置（四种拾音风格与灵敏度，对灯自带麦克风生效）
 - **灯效**：`静态 | 动态` 分段切换，互斥应用——
   静态=色环取色+8 预设（BC04 静态颜色）；动态=153 种内置灯效（9 分类 × 17）+
@@ -31,6 +32,8 @@ Lenze Tech「拾音灯」硬件的自有 Android 控制器——Material 3 Expre
 - BLE：FastBle 2.3.4（源码收编 `app/libs-src/`，Apache-2.0，见 `third_party/`），
   与厂商 App 同款传输层；协议帧表见 `docs/ble_protocol.md`（14 种帧，反汇编提取+单测锁定）
 - minSdk 31 / targetSdk 37 · 单 :app 模块无 DI · 模拟器自动切换假灯实现（`FakeLampConnection`）供无灯开发
+- 仓库内另有**开发中的 Windows 客户端移植**（`windows/`）：协议库、GATT 队列与会话层已移植并有
+  单元测试（`dotnet test windows/tests/QuartzLamp.Tests`），尚无可用界面、未发布——当前可用产物仍为 Android 版
 
 ## 构建
 

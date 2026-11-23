@@ -18,7 +18,8 @@ sound-reactive lamp ("拾音灯"), rebuilt from scratch.
 
 - **Device**: power as the primary action + brightness (a global parameter — applies in
   both static-color and effect modes) + connection management (multi-lamp, per-device
-  connect/disconnect/reconnect; limited auto-reconnect 3×4s after unexpected drops,
+  connect/disconnect/reconnect; auto-reconnect after unexpected drops — 3 rounds, 4s
+  apart, cancellable at any time; fixed on `main`, real-lamp re-verification pending;
   manual disconnects never fight back) + lamp pickup configuration (four pickup styles
   and sensitivity for the lamp's own microphone)
 - **Effects**: `Static | Dynamic` segmented toggle, applied exclusively —
@@ -37,6 +38,10 @@ sound-reactive lamp ("拾音灯"), rebuilt from scratch.
   (14 frames, extracted from disassembly and locked by unit tests)
 - minSdk 31 / targetSdk 37 · single `:app` module, no DI · emulators auto-switch to a
   fake lamp (`FakeLampConnection`) for development without hardware
+- The repo also contains a **Windows client port in progress** (`windows/`): the protocol
+  library, GATT queue and session layer are ported with unit tests
+  (`dotnet test windows/tests/QuartzLamp.Tests`); there is no usable UI yet and it is
+  unreleased — the Android app remains the current deliverable
 
 ## Build
 

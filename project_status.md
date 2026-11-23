@@ -1,22 +1,23 @@
 # quartzlamp — 拾音灯控制器重建项目
 
 > 本文件是唯一当前状态源（架构/功能/TODO/文件拓扑），阶段完成后原地更新。
-> 当前 Android 阶段（2026-10-24）：**0.5.7(16) 已发布**，具体实现与验证债以§7为准。Windows 移植处于立项规划阶段，见下方“Windows 客户端规划”；尚无 Windows 产品实现。
+> 当前 Android 阶段（2026-11-24）：**0.5.7(16) 已发布**；main 在其上带一批**未发布修复**（2026-11-24 审查——含"意外断连后自动重连一次都不发起"的 P1，详见§7 与 `docs/review_2026-11-24.md`），待真机复验后出 0.5.8。Windows 移植：协议库 / GATT 队列 / 会话层已入库并有单元测试，尚无可用界面、未发布，见下方“Windows 客户端规划”。
 > Android 历史证据：`tests/review_2026-10-22/themed_icon/`（launcher 双态+应用深浅色 sanity，本地保留）。UI 依据见 `docs/review_2026-10-22_ui_repair.md`；最新 Android 验证边界见§7。旧审查摘要保留为历史快照。
 
 ## Windows 客户端规划（2026-10-24，本地）
 
 - 已完成独立立项报告：`docs/workorder_windows_port_2026-10-24.md`（本地私有工作材料，按既有规则忽略，不作为公开仓缺失文档要求）。本地留痕 ref：`refs/local-reports/windows-port-plan-2026-10-24`。
 - 功能基准为当前 Android 设备/多灯、153 灯效、灯载拾音、两槽硬件定时与设置；手机麦/本地音乐是已移除的历史功能，不自动恢复。
-- 推荐 C#/.NET 10 LTS + WinUI 3/Windows App SDK Stable + Windows 原生 BLE/GATT；同仓 windows/ 为目标拓扑，尚未创建源工程。Android M3E 与 FastBle 保持现有边界。
+- 推荐 C#/.NET 10 LTS + WinUI 3/Windows App SDK Stable + Windows 原生 BLE/GATT；同仓 windows/ 为目标拓扑，尚未创建源工程。（2026-11-24 更正：`windows/` 源工程已入库，见本节后续记录。）Android M3E 与 FastBle 保持现有边界。
 - 系统接入采用可选共用 LampArray 提供端与用户态 BLE 桥接。每灯先按整体灯区，不承诺逐灯珠/统一高帧率。先验证运行态写入安全性、定时/拾音仲裁和正常签名部署。
 - 工作顺序：W0 工具链/黄金样本→W1 真灯最小闭环→W2 会话/多灯→W3 全功能→W4 Fluent→W5 系统接管→W6 安装交付；共用驱动部署门在 W0 同时研究。
 - 本轮核对本地/远端 main 均为 d5a26e2；没有产品代码修改、Android 构建、设备写入或视觉验收。报告证据：`tests/review_2026-10-24/windows-port/manifest.json`（本地私有）。
-- **主力研判（2026-10-24，判读不动工）**：报告事实核验全过——协议声明 5 条与 `docs/ble_protocol.md` 事实源逐条一致（含 200ms=FastBle 分包间隔的 R0 纠正语义、BC05 下限 3/÷255、静态 HSV ÷256）；本机 .NET SDK 10.0.402 在位；Windows App SDK Stable 2.5.1 经官方发布通道页核实（2026-09-16 发布，2.0 线支持至 2027-04）。两条执行前置补充：①**BC09/RGB 直发帧不在现行协议事实源**（随律动功能删除）——Windows 动态照明（W5）前置=从厂商 APK 重新提取该帧族并按项目红线 3 走协议文档增补+单测流程，不是纯"验证"；②**单灯资源排他**——Android 真机终验欠账与 Windows W1/W5 真灯验证共用同一盏灯，须串行排程（灯端定时槽仅 2 组、写入即覆写）。
+- **主力研判（2026-10-24，判读不动工）**：报告事实核验全过——协议声明 5 条与 `docs/ble_protocol.md` 事实源逐条一致（含 200ms=FastBle 分包间隔的 R0 纠正语义、BC05 下限 3/÷255、静态 HSV ÷256）；本机 .NET SDK 10.0.402 在位；Windows App SDK Stable 2.5.1 经官方发布通道页核实（2026-09-16 发布，2.0 线支持至 2027-04）。两条执行前置补充：①~~BC09/RGB 直发帧不在现行协议事实源~~（**2026-11-24 更正：该表述有误**——帧 #6 `BC 09` 与 #11 RGB 直发仍在 `docs/ble_protocol.md` §2 帧表内，Kotlin/C# 均有实现与黄金向量，Android 仅作为休眠接口保留；W5 若需扩展该帧族的用法，再按项目红线 3 走协议增补+单测，不必从厂商 APK 重新提取）；②**单灯资源排他**——Android 真机终验欠账与 Windows W1/W5 真灯验证共用同一盏灯，须串行排程（灯端定时槽仅 2 组、写入即覆写）。
 - **执行安排已出（2026-10-24）**：`docs/workorder_windows_exec_2026-10-24.md`（本地）——P0 工具链+黄金向量（无灯）→P1 Android 真机终验（用户+灯）→P2 起真灯闭环；决策点 D1 立项/D2 动态照明分两步/D3 排程待用户批复后开工。技术预判：我方全部帧 ≤10B，FastBle 200ms 分包间隔对本帧族恒不触发，Windows 写节奏为自有设计空间（真灯实测定下限）。
 - **P0+P3 无灯部分已完成（2026-10-24，用户"推进所有安排"指令）**：`windows/` 骨架入库——①WinUI 3 模板（WASDK 2.5.1 Stable+net10.0-windows）dotnet CLI 构建 0/0+运行验证 PASS（无 VS 成立）；②黄金向量 67 项（期望源=Android 测试+走查实录帧，交叉核对抓出 2 向量手算错+1 处 close 语义偏差后全绿）；③C# LampFrames 逐字节移植+GattOpQueue（Q1 语义）移植，**dotnet test 65/65**；④驱动部署研究结论：内核驱动正式签名需 Dev Center attestation（EV 证书门槛），LampArray 无用户态提供端（VHF 必经）——W5 待用户二次批复。**待办**：P3 会话所有者移植（下一时段）；P1/P2 需真灯（用户）；P4/P5 UI 层待 P2 后。
 - **三端功能对齐审查已完成（2026-10-24，报告 `docs/review_2026-10-24_parity.md` 本地）**：21 项原版功能矩阵——**Android 零功能缺口**（移除项全有拍板）；Windows 协议层就绪 13 项、运行时缺口 7 项。新发现 2 项（非缺陷）：F-1 Windows Effects 数据表未移植（已排下一时段，随会话所有者移植同批导出 `golden/effects.json`）；F-2 BC0F 手机源死参数双端一致（记录）。统一排程已并入执行工作单 §0.2。
 - **F-1+P3 会话层已完成（2026-10-24"推进无用户依赖工作"轮）**：①F-1 关闭——`tests/generate_effects_golden.py`（Python 独立实现，从 Effects.kt 解析）生成 `windows/golden/effects.json`（153 名称+分类+计数，PURE_BROKEN=6 与真机实证吻合），C# `Effects.cs` 词法移植+契约测试逐项校验；②扫描过滤 `ScanFilter.cs` 移植（22 20 首段偏移+越界防御，对齐 Android 测试+边界补充）；③**P3 会话所有者 `LampSession.cs`**（ConnectAsync 首连即返回、后台重连预算逐次推进、世代按尝试递增、迟到成功由弃任务观察者释放自有句柄、退避中用户断开不复活、单飞/双设备独立）+FakeTransport 状态矩阵 8 测试；④GATT 传输骨架 `QuartzLamp.Transport.Windows`（watcher/FFF0→FFF3/队列串行写/断连事件；**P2 标注未验证**，22 20 过滤在 WinRT 的落点待真实广播布局实测）。**dotnet test 81/81 全绿**。本轮修正实现缺陷 1 处（失败路径进退避漏发 Reconnecting）+测试侧错误 3 处（Fake 拆包/抽查索引/枚举名映射）——TDD 闭环价值实证。**剩余（均有硬依赖）**：P1 真机终验/P2 真灯闭环+过滤落点实测/P4 UI（D2 二批/P2 后）。
+- **2026-11-24 审查修正会话所有者（未发布）**：对照 Android 语义发现并修复——①**重连预算改为每次连接成功后恢复**（原为会话生命周期内累计：灯闪断 3 次即永久 `Failed`，哪怕每次都秒连成功）；②**终态后再次 `ConnectAsync` 换新 run 发起连接**（原直接返回旧终态，零次尝试，必须先 `DisconnectAsync` 才能重连）；③`IBleConnection.IsDropped` 闩锁 + 会话"订阅后复查"，堵住"句柄返回前系统已报断连"的漏接（否则永久停在 Connected）；另修 `userDrop` 的 `Task.Delay(Infinite)` 每轮重连泄漏一次、状态订阅方异常终止会话循环（改经 `StateChangedHandlerFailed` 转交）、失败重试期不发布 Connecting。测试侧：原 `意外断连_重连成功` 等待条件恒真（**单独运行 25/25 失败**，整套通过靠调度运气），改为等待真实转移；新增 5 条；**dotnet test 86/86**，单独 30 次 / 按类 25 次 / 整套 25 次全通过。**Windows 传输骨架仍未验证**，P2 真灯闭环须确认四点：GattSession.MaintainConnection（否则空闲即断）、LE 地址类型（`ParseAddress` 隐含 Public）、Passive 扫描能否收到 scan response 里的设备名、22 20 识别字节的落点。
 
 ## 0. 项目定位
 
@@ -137,13 +138,14 @@ M0 时对比厂商 dex 内 FastBle 类集与 2.3.4 确认版本一致（厂商 c
 - 本仓库永不入库厂商 APK 本体与其解包资源（.gitignore 已锁）；
 - 若开源：附 AI 使用声明 + 免责声明（对齐全局规范六.8）。
 
-## 7. 当前状态（2026-10-24 · 0.5.7(16) 已发布）
+## 7. 当前状态（2026-11-24 · 0.5.7(16) 已发布；main 带未发布修复）
 
-- **版本事实源**：`app/build.gradle.kts` = 0.5.7(16)。已发布链：v0.5.4=e2bd637、v0.5.5=aa03ce0、v0.5.6=655686c（mono 剪影）、v0.5.7=本轮 tag；明细见 CHANGELOG。发布契约=出包即发版（tag+Release+CHANGELOG 同轮）。
+- **版本事实源**：`app/build.gradle.kts` = 0.5.7(16)。已发布链：v0.5.4=e2bd637、v0.5.5=aa03ce0、v0.5.6=655686c（mono 剪影）、v0.5.7=1f7887c；明细见 CHANGELOG。发布契约=出包即发版（tag+Release+CHANGELOG 同轮）。
 - **0.5.7 内容**：外部审计两个 P3 随版——定时"未设置（时间为默认值）"文案澄清（QV-01）+WeekChip 双份 10dp 形状合并（QL-07）；同轮完成 BC06 帧一致性走查关债（见验证债 1）。应用行为与 BLE 层零变化。
 - **本轮验证（0.5.7）**：单测 100/0（--rerun 实跑）；lintDebug/lintRelease、assembleRelease 通过；release DEX 无 Fake、aapt2 badging 身份 0.5.7(16)。AVD 走查（A16_clean，深色）：假灯连接+9/9 分类首卡 BC06 帧逐一吻合+两 tab 截图名称独立对照；**宿主 qemu 三次段错误（139）后按纪律终止**——纯色组卡/限幅帧引历史实证，TalkBack 未走（TalkBack 已确认预装该镜像）。
 - **周 chip 触区（QL-02/QV-04 关债）**：推导级证据——M3 最小触区强制为布局级（N3 实证撑宽折行）、foundation toggleable 无扩展，单行 7 枚成立即证无 48dp 扩展→相邻 gap 4dp 无互抢；48dp 不足=N3 拍板取舍。
 - **主题图标 tint 环境限制（0.5.6 轮发现，随真机清）**：A16 镜像 Launcher 不给应用图标做主题 tint（对照组 Gmail 同样彩色）；应用侧三证齐全（adaptive XML 三层声明/mono=同主题前景 alpha 逐像素一致/APK 资源配置表）。Pixel Launcher 磁盘图标缓存不随 uiMode 失效，昼夜图标验证标准动作=切 uimode→install -r 重装→看抽屉。
+- **2026-11-24 审查与修复（未发布，基线 `40bcee3`）**：报告 `docs/review_2026-11-24.md`、证据 `tests/review_2026-11-24/`（均本地）。19 项发现——**P1：真实实现里意外断连后自动重连一次都不发起**（`scheduleReconnect` 协程体在 `Main.immediate` 下同步启动、早于 `reconnectJobs` 登记，首轮判"被取代"即 break；此前"重连矩阵"只测 debug 假灯，产品类零直接测试，故历轮皆绿）。同批修复：首连失败卡"连接中"、重复连接并行 `connectGatt`、GATT 队列迟到二次回调崩溃（Already resumed）、单轮兜底超时短于 FastBle 内部重试序列、定时"未设置"读回修订号归零、读取目标名重扫后退化为 MAC、VM 不在时会话就绪帧漏发。做法=先红后绿：真实类上先复现再修（会话 4 红、队列 3 红、VM 3 红→全绿）。Android 单测 **122/0**（原 100，新增 22）。文档同步：CHANGELOG Unreleased、README 双语重连口径、`docs/acceptance.md` 第 9/9b/9c 步、协议文档 autoConnect 事实更正、`third_party/` 清单（收编 FastBle 32/32 与上游逐字节一致已核）。**视觉、真机/真灯、AVD 实屏本轮未验证**。
 
 ### 当前验证债与发布门禁
 
@@ -153,8 +155,9 @@ M0 时对比厂商 dex 内 FastBle 类集与 2.3.4 确认版本一致（厂商 c
 2. **周 chip 命中区（QL-02/QV-04）：已关闭（推导级）**。foundation 无最小触区扩展（M3 强制=布局级，N3 实证），相邻 chip gap 4dp 无互抢；48dp 取舍=N3 拍板。
 3. **TalkBack 四流程**：TalkBack 已确认预装 A16_clean；实走因宿主 qemu 段错误未成，待环境窗口。
 4. **真机/真灯终验**：acceptance 12 步+A1-A5、射频重连、多灯部分失败语义、掉电时钟；**主题 tint 实屏**（镜像不可验，已三证）随真机。
-5. **决策点**：DEC-1 预测返回转场风格、DEC-2 隐藏定时槽（等真机 A4）。
-6. **下一步**：0.5.7(16) 已发布（两个审计 P3 随版）；main 无未发布增量；真机窗口到达时清第 3/4 条。
+   - **自动重连（2026-11-24 修复，未真机验证）**：证据仅为源码走查 + 发布包内真实实现的单元测试（脚本化回调+虚拟时钟）。真机优先走 acceptance 第 9/9b/9c 步（自动重连 / 耗尽后再连失败回未连接 / 全程 crash 缓冲为空）。
+5. **决策点**：DEC-1 预测返回转场风格、DEC-2 隐藏定时槽（等真机 A4）；**DEC-3 autoConnect**（我方 `false` 直连 vs 厂商 `true`，实现自 M1 起偏离且无决策记录，现值经真灯验证可连——是否回归厂商值需真机对比，事实见协议文档 §1）；**DEC-4 NOTICE 所指图标生成说明不在公开树**（`assets/` 为本地排除、属用户并行工作，未动）；**DEC-5 `tests/screens/` 101 张历史截图约 17MB 在公开仓且 README 未引用**，去留需用户定清单。
+6. **下一步**：main 带未发布修复（见上方 2026-11-24 条）→ 用户真机走 acceptance 第 9/9b/9c 步 → 过验出 **0.5.8(17)**（出包即发版契约）；lint baseline 有 1 条失效条目可随版 `updateLintBaseline`；真机窗口到达时清第 3/4 条。
 
 ## 7.1 发布历史（近版）
 
@@ -473,7 +476,9 @@ tests/review/              ← 审查/冒烟证据（r1_realble_smoke.log / r2_e
 tests/review_2026-10-19/    ← 本轮独立探针/构建/运行时日志/实际截图
 tests/review_2026-10-20/    ← 最新反例/构建/原包核对/参考资料/宿主异常证据（本地保留）
 tests/review_2026-10-20/avd_0_4_0/ ← 本轮57张新图/XML/帧/初始化崩溃/操作记录
-app/                       ← 0.4.0：ble/protocol/ui/data，debug专用fake，lint-baseline 已锁
+tests/review_2026-11-24/    ← 2026-11-24 审查取证（evidence.md / verify_refs.py；本地保留）
+app/                       ← 当前 0.5.7(16)：ble/protocol/ui/data，debug 专用 fake，lint-baseline 已锁
+windows/                   ← 移植中（未发布）：Protocol/Core/Transport.Windows/App + tests + golden（dotnet test 86 项）
 ```
 
 

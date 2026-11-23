@@ -19,9 +19,23 @@
 `enableLog(true)` · `setReConnectCount(3, 4000ms)` · `setMaxConnectCount(7)` ·
 `setConnectOverTime(99000ms)` · `setOperateTimeout(5000ms)`
 
-**扫描规则** ✅：超时 8000ms · autoConnect=true（默认）· **无服务 UUID 过滤**，
+**扫描规则** ✅：超时 8000ms · autoConnect=**true** · **无服务 UUID 过滤**，
 过滤在回调内做：设备名非空 && `scanRecord[scanRecord[0]+3] == 0x22` && `scanRecord[scanRecord[0]+4] == 0x20`
 （首 AD 段长度偏移法，识别字节 **22 20**）。
+autoConnect 出处（2026-11-24 字节码复核，`MyApplication.setScanRule` `2f68e0-2f690e`）：`<init>` 把
+`isAutoConnect` 字段置 true（`2f64fa`），`setScanRule()` 以 `setAutoConnect(isAutoConnect)` 传入——
+是厂商**显式置位**，不是 FastBle 的默认值（`BleScanRuleConfig` 默认 false；此前记作"（默认）"有误）。
+
+**传输层行为（移植与重连实现须知）** ✅：
+- `setReConnectCount(3, 4000ms)` 是 FastBle **内部**的连接失败重试：一次 connect 调用失败后自行重试
+  3 次（间隔 4s，`BleBluetooth` 的 `MSG_CONNECT_FAIL` 分支），整段都失败才回调 `onConnectFail`。
+  它**不处理**已连接后的意外断连——意外断连直接回调 `onDisConnected`，重连必须由上层触发。
+- 每个操作带 `setOperateTimeout`（5s）：到点回调失败；若设备应答在 5s 后才到，会对**同一次操作再回调一次**
+  真实结果。上层必须把传输回调当作"可能多次"处理。
+
+**我方实现与上表的对应**（Android `FastBleLampConnection`）：初始化参数逐项照抄；**autoConnect 为 `false`
+（直连），与厂商不同**——自 M1 骨架起即如此、无决策记录；现值经真灯验证可连（设备刚被扫到时直连更快、
+失败有界）。是否回归厂商值属待决项，需真机对比后再定。
 
 **回读**：定时信息用 GATT **read**（FFF3）读回，notify 只注册不参与 UI（回调仅打日志）。
 **多灯广播**：write 遍历所有已连接设备逐个下发。
@@ -97,3 +111,6 @@ mingDu（明度）=600 · speed=50 · sensitivity=50
     浏览 tab"前提不适用——依据见 review_2026-10-19.md §2 与用户拍板）；
   - §1 写参数语义纠正（split/sendNextWhenLastSuccess/intervalBetweenTwoPackage，调用值不变）；
   - §3 读回补 timer$8 解析细节，§5 新增响应包络验证项。
+- 2026-11-24 审查复核（帧表无变化）：§1 autoConnect 出处更正——厂商显式置 true（`<init>` +
+  `setScanRule`），非 FastBle 默认值；登记我方实现使用 `false` 的偏离（待决项）；补传输层内部重试与
+  操作超时"迟到再回调一次"的语义，供 Windows 移植与重连实现参照。
