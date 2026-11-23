@@ -16,9 +16,18 @@ public sealed class LampSessionTests
     {
         public required string DeviceId { get; init; }
         public event Action? Dropped;
+        public bool IsDropped { get; private set; }
         public int DisposeCount;
 
-        public void TriggerDrop() => Dropped?.Invoke();
+        public void TriggerDrop()
+        {
+            IsDropped = true; // 闩锁先于事件（与 WindowsBleTransport 同约定）
+            Dropped?.Invoke();
+        }
+
+        /// <summary>模拟"会话订阅之前系统已报断连"：只置闩锁、不发事件。</summary>
+        public void MarkDroppedSilently() => IsDropped = true;
+
         public ValueTask DisposeAsync()
         {
             DisposeCount++;
@@ -29,8 +38,9 @@ public sealed class LampSessionTests
 
     private sealed class FakeTransport : IBleTransport
     {
-        // 每次尝试弹出下一个脚本项：Exception（失败）/任意对象（成功返回新连接）。
-        // 脚本耗尽=抛 InvalidOperationException（视作一次失败尝试）。
+        // 每次尝试弹出下一个脚本项：Exception（失败）/任意对象（成功返回新连接）/
+        // IBleConnection 实例（成功返回该既有句柄）/Task<IBleConnection>（迟到完成）。
+        // 脚本耗尽=抛 IOException（视作一次失败尝试）。
         public Queue<object?> Script = new();
         public List<FakeConnection> Created = new();
         public int Attempts;
@@ -42,6 +52,7 @@ public sealed class LampSessionTests
             var next = Script.Count > 0 ? Script.Dequeue() : new IOException("script exhausted");
             if (next is Exception ex) return Task.FromException<IBleConnection>(ex);
             if (next is Task<IBleConnection> pending) return pending; // 迟到完成脚本项：原样返回挂起任务
+            if (next is IBleConnection existing) return Task.FromResult(existing);
             var conn = new FakeConnection { DeviceId = deviceId };
             lock (Created) Created.Add(conn);
             return Task.FromResult<IBleConnection>(conn);
@@ -50,6 +61,18 @@ public sealed class LampSessionTests
 
     private static LampSessionOwner NewOwner(FakeTransport t) =>
         new(t, (_, _) => Task.CompletedTask, TimeSpan.Zero); // 测试零退避，消除时序等待
+
+    /// <summary>等待一组**可观测转移**同时成立。注意不要等待"触发前即已成立"的状态——那不是等待。</summary>
+    private static async Task UntilAsync(Func<bool> condition, string what)
+    {
+        var deadline = DateTime.UtcNow + WaitLimit;
+        while (DateTime.UtcNow < deadline)
+        {
+            if (condition()) return;
+            await Task.Delay(10);
+        }
+        Assert.Fail($"not reached: {what}");
+    }
 
     private static async Task WaitStateAsync(LampSessionOwner owner, string id, LampSessionState state)
     {
@@ -76,14 +99,14 @@ public sealed class LampSessionTests
     }
 
     [Fact]
-    public async Task 两败一成_Connected且预算余1()
+    public async Task 两败一成_Connected且预算恢复满额()
     {
         var t = new FakeTransport { Script = new Queue<object?>([new IOException(), new IOException(), new object()]) };
         var owner = NewOwner(t);
         await WithTimeout(owner.ConnectAsync("A"), "connect");
         var snap = owner.Snapshot("A");
         Assert.Equal(LampSessionState.Connected, snap.State);
-        Assert.Equal(1, snap.AttemptsLeft);
+        Assert.Equal(3, snap.AttemptsLeft); // 连上即恢复完整预算：预算按"每份连接序列"计，不在会话生命周期内累计
         await SettleAsync(owner, t);
     }
 
@@ -107,13 +130,110 @@ public sealed class LampSessionTests
         Assert.Equal(0, first.DisposeCount);
 
         first.TriggerDrop(); // 意外断连 → 后台重连（脚本第 2 项成功）
-        await WaitStateAsync(owner, "A", LampSessionState.Connected);
+
+        // 等待的是**转移**：旧句柄已释放 + 新尝试已发起 + 终态 Connected。
+        // 不能只等 State==Connected——触发断连那一刻它本就成立，等待会同步返回，断言直接暴露在竞态下。
+        await UntilAsync(
+            () => first.DisposeCount == 1 && t.Attempts == 2 && owner.Snapshot("A").State == LampSessionState.Connected,
+            "旧句柄释放 + 新尝试发起 + Connected");
 
         var snap = owner.Snapshot("A");
         Assert.Equal(2, snap.Generation);
         Assert.Equal(2, t.Attempts);
         Assert.Equal(1, first.DisposeCount); // 旧句柄已释放
         await SettleAsync(owner, t);
+    }
+
+    [Fact]
+    public async Task 多次闪断每次都重连成功_预算不累计耗尽()
+    {
+        // budget=2：若预算在会话生命周期内累计，第 2 次闪断即 Failed。
+        // 对齐 Android 语义：每次意外断连重新获得完整预算——连续闪断每次秒连成功应一直 Connected。
+        var t = new FakeTransport();
+        t.Script = new Queue<object?>(new object?[6]); // 1 次首连 + 5 次重连，全部成功
+        var owner = NewOwner(t);
+        await WithTimeout(owner.ConnectAsync("A", budget: 2), "connect");
+
+        for (var round = 1; round <= 5; round++)
+        {
+            var current = t.Created[^1];
+            var r = round;
+            current.TriggerDrop();
+            await UntilAsync(
+                () => current.DisposeCount == 1 && t.Attempts == 1 + r &&
+                      owner.Snapshot("A").State == LampSessionState.Connected,
+                $"第 {r} 次闪连后重连成功");
+            Assert.Equal(2, owner.Snapshot("A").AttemptsLeft); // 每次连上预算回满
+        }
+
+        Assert.Equal(LampSessionState.Connected, owner.Snapshot("A").State);
+        await owner.DisconnectAsync("A");
+    }
+
+    [Fact]
+    public async Task Failed终态后再次Connect_发起新会话并可连上()
+    {
+        var t = new FakeTransport { Script = new Queue<object?>([new IOException(), new IOException(), new IOException()]) };
+        var owner = NewOwner(t);
+        await WithTimeout(owner.ConnectAsync("A"), "connect");
+        Assert.Equal(LampSessionState.Failed, owner.Snapshot("A").State);
+
+        t.Script.Enqueue(new object()); // 用户重试时灯已就绪
+        await WithTimeout(owner.ConnectAsync("A"), "reconnect");
+        Assert.Equal(4, t.Attempts); // 必须真的发起新的连接尝试，而不是直接返回旧终态
+        Assert.Equal(LampSessionState.Connected, owner.Snapshot("A").State);
+        await owner.DisconnectAsync("A");
+    }
+
+    [Fact]
+    public async Task 订阅前已断连的句柄_会话识别为意外断连并重连()
+    {
+        // 传输层返回句柄之前，系统断连事件已经发过（事件丢失）：仅 IsDropped 闩锁为真，之后不再发事件。
+        // 会话必须靠"订阅后复查"识别，否则永久停在 Connected。
+        var t = new FakeTransport();
+        var preDropped = new FakeConnection { DeviceId = "A" };
+        preDropped.MarkDroppedSilently();
+        t.Script.Enqueue(preDropped);
+        t.Script.Enqueue(new object());
+        var owner = NewOwner(t);
+        await WithTimeout(owner.ConnectAsync("A", budget: 2), "connect");
+
+        await UntilAsync(() => t.Attempts == 2 && preDropped.DisposeCount == 1, "订阅前已断的句柄被释放并发起重连");
+        Assert.Equal(LampSessionState.Connected, owner.Snapshot("A").State);
+        await owner.DisconnectAsync("A");
+    }
+
+    [Fact]
+    public async Task 状态订阅方抛异常_不终止会话循环()
+    {
+        var t = new FakeTransport { Script = new Queue<object?>([new object(), new object()]) };
+        var owner = NewOwner(t);
+        Exception? reported = null;
+        owner.StateChangedHandlerFailed += ex => reported = ex;
+        owner.StateChanged += _ => throw new InvalidOperationException("subscriber bug");
+
+        await WithTimeout(owner.ConnectAsync("A", budget: 2), "connect");
+        Assert.IsType<InvalidOperationException>(reported);
+
+        t.Created[0].TriggerDrop();
+        await UntilAsync(() => t.Attempts == 2 && t.Created[0].DisposeCount == 1, "订阅方异常后重连循环仍在推进");
+        await owner.DisconnectAsync("A");
+    }
+
+    [Fact]
+    public async Task 失败后重试期间_状态序列为Connecting_Reconnecting_Connected()
+    {
+        var states = new System.Collections.Concurrent.ConcurrentQueue<LampSessionState>();
+        var t = new FakeTransport { Script = new Queue<object?>([new IOException(), new object()]) };
+        var owner = NewOwner(t);
+        owner.StateChanged += s => states.Enqueue(s.State);
+
+        await WithTimeout(owner.ConnectAsync("A", budget: 3), "connect");
+        // 重试尝试进行中应上报 Connecting（与断连重试路径一致），而不是全程停在 Reconnecting
+        Assert.Equal(
+            new[] { LampSessionState.Connecting, LampSessionState.Reconnecting, LampSessionState.Connecting, LampSessionState.Connected },
+            states.ToArray());
+        await owner.DisconnectAsync("A");
     }
 
     [Fact]

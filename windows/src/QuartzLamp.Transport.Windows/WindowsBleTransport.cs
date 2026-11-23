@@ -106,10 +106,14 @@ public sealed class WindowsBleTransport : IBleTransport, IDisposable
         private readonly BluetoothLEDevice _device;
         private readonly GattCharacteristic _characteristic;
         private readonly GattOpQueue _queue = new();
+        private int _droppedFlag;
 
         public event Action? Dropped;
 
         public string DeviceId { get; }
+
+        /// <summary>断连态闩锁（会话所有者"订阅后复查"用）：置位先于事件触发，不复位。</summary>
+        public bool IsDropped => Volatile.Read(ref _droppedFlag) != 0;
 
         public GattBleConnection(string deviceId, BluetoothLEDevice device, GattCharacteristic characteristic)
         {
@@ -121,8 +125,8 @@ public sealed class WindowsBleTransport : IBleTransport, IDisposable
 
         private void OnStatusChanged(BluetoothLEDevice sender, object args)
         {
-            if (sender.ConnectionStatus == BluetoothConnectionStatus.Disconnected)
-                Dropped?.Invoke();
+            if (sender.ConnectionStatus != BluetoothConnectionStatus.Disconnected) return;
+            if (Interlocked.Exchange(ref _droppedFlag, 1) == 0) Dropped?.Invoke();
         }
 
         /// <summary>经队列串行 WriteWithResponse（FFF3 写/读/notify 同一特征）。</summary>

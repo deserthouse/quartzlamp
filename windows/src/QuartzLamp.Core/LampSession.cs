@@ -9,6 +9,13 @@ public interface IBleConnection : IAsyncDisposable
 {
     string DeviceId { get; }
     event Action? Dropped;
+
+    /// <summary>
+    /// 断连态闩锁：传输层在构造句柄时就已订阅系统断连事件，而会话所有者要拿到句柄后才订阅
+    /// <see cref="Dropped"/>——订阅之前发生的断连事件会丢。会话在订阅后复查本属性补偿。
+    /// 实现约定：先置位、再触发事件；一经置位不复位。
+    /// </summary>
+    bool IsDropped { get; }
 }
 
 /// <summary>
@@ -44,6 +51,9 @@ public sealed class LampSessionOwner : IAsyncDisposable
 
     public event Action<LampSessionSnapshot>? StateChanged;
 
+    /// <summary>状态订阅方自身抛出的异常（订阅方问题不得终止会话循环；需要诊断时订阅本事件）。</summary>
+    public event Action<Exception>? StateChangedHandlerFailed;
+
     public LampSessionOwner(IBleTransport transport,
         Func<TimeSpan, CancellationToken, Task>? delay = null,
         TimeSpan? backoff = null)
@@ -59,8 +69,18 @@ public sealed class LampSessionOwner : IAsyncDisposable
     /// <summary>发起连接，首次稳定连接（或终态）时返回。此后断连重连在后台进行。</summary>
     public async Task ConnectAsync(string deviceId, int budget = DefaultBudget, CancellationToken ct = default)
     {
-        var run = _runs.GetOrAdd(deviceId, _ => new SessionRun(this, deviceId, _transport, _delay, _backoff));
-        await run.StartAsync(budget, ct).ConfigureAwait(false);
+        while (true)
+        {
+            var run = _runs.GetOrAdd(deviceId, _ => new SessionRun(this, deviceId, _transport, _delay, _backoff));
+            if (!run.IsFinished)
+            {
+                await run.StartAsync(budget, ct).ConfigureAwait(false);
+                return;
+            }
+            // 表中残留的是**已终态**的旧 run（预算耗尽 Failed / 发起方取消 Disconnected，且未被显式断开）：
+            // 它不会再发起任何连接——按 key+引用原子移除后换新 run，否则重试只会直接返回旧终态
+            if (_runs.TryRemove(KeyValuePair.Create(deviceId, run))) continue;
+        }
     }
 
     /// <summary>用户主动断开：终止会话且重连预算不复活。</summary>
@@ -117,7 +137,27 @@ public sealed class LampSessionOwner : IAsyncDisposable
 
         public LampSessionSnapshot Snapshot => new(_deviceId, _state, _generation, _attemptsLeft);
 
-        private void Publish() => _owner.StateChanged?.Invoke(Snapshot);
+        /// <summary>run 是否已走到终点（循环已退出）：终态 run 不再发起任何连接。</summary>
+        public bool IsFinished => _terminal.Task.IsCompleted;
+
+        private void Publish()
+        {
+            var handlers = _owner.StateChanged;
+            if (handlers is null) return;
+            var snap = Snapshot;
+            foreach (var h in handlers.GetInvocationList())
+            {
+                try
+                {
+                    ((Action<LampSessionSnapshot>)h)(snap);
+                }
+                catch (Exception ex)
+                {
+                    // 订阅方自身的问题不得终止会话循环（否则状态停摆且不落终态）；转交诊断事件
+                    _owner.StateChangedHandlerFailed?.Invoke(ex);
+                }
+            }
+        }
 
         public async Task StartAsync(int budget, CancellationToken ct)
         {
@@ -184,18 +224,29 @@ public sealed class LampSessionOwner : IAsyncDisposable
                     _state = LampSessionState.Reconnecting;
                     Publish();
                     if (!await BackoffOrStopAsync().ConfigureAwait(false)) return;
+                    _state = LampSessionState.Connecting; // 重试尝试进行中：与断连重试路径同样上报
+                    Publish();
                     continue;
                 }
 
-                // 成功：发布首连，驻留监听断开。
+                // 成功：发布首连，驻留监听断开。预算按"每份连接序列"恢复——对齐 Android：每次意外断连
+                // 重新获得完整预算（否则预算是会话生命周期内的累计，灯闪断 N 次即永久 Failed）
+                _attemptsLeft = budget;
                 _state = LampSessionState.Connected;
                 Publish();
                 _firstConnected.TrySetResult();
                 _dropped = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-                conn.Dropped += () => _dropped?.TrySetResult();
+                Action onDropped = () => _dropped?.TrySetResult();
+                conn.Dropped += onDropped;
+                // 订阅后复查：句柄在传输层构造时起就可能已断（那时还没人订阅），靠闩锁补偿
+                if (conn.IsDropped) _dropped.TrySetResult();
 
-                var userDrop = Task.Delay(Timeout.Infinite, _userCts.Token);
+                // 用户断开的等待用独立链接令牌：意外断连分支离开后必须释放，否则注册挂在用户令牌上
+                using var userWait = CancellationTokenSource.CreateLinkedTokenSource(_userCts.Token);
+                var userDrop = Task.Delay(Timeout.Infinite, userWait.Token);
                 var winner = await Task.WhenAny(_dropped.Task, userDrop).ConfigureAwait(false);
+                userWait.Cancel();
+                conn.Dropped -= onDropped;
                 _dropped = null;
 
                 if (winner == userDrop)
