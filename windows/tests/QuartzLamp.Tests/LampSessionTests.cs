@@ -237,15 +237,33 @@ public sealed class LampSessionTests
     }
 
     [Fact]
-    public async Task 意外断连_重连全败_Failed()
+    public async Task 意外断连_重连尝试次数等于预算_全败则Failed()
     {
-        var t = new FakeTransport { Script = new Queue<object?>([new object(), new IOException()]) };
+        // budget=2：断连本身不占重连次数——断连后应有 **2 次**重连尝试（共 1+2 次连接调用），全败才 Failed
+        var t = new FakeTransport { Script = new Queue<object?>([new object(), new IOException(), new IOException()]) };
         var owner = NewOwner(t);
         await WithTimeout(owner.ConnectAsync("A", budget: 2), "connect");
 
-        t.Created[0].TriggerDrop(); // 剩余预算 1 → 重试失败
-        await WaitStateAsync(owner, "A", LampSessionState.Failed);
-        Assert.Equal(2, t.Attempts);
+        t.Created[0].TriggerDrop();
+        await WaitStateAsync(owner, "A", LampSessionState.Failed); // Failed 在触发前不成立：这是有效等待
+        Assert.Equal(3, t.Attempts);
+        Assert.Equal(0, owner.Snapshot("A").AttemptsLeft);
+    }
+
+    [Fact]
+    public async Task 意外断连_预算内第三次成功_恰好三次尝试()
+    {
+        var t = new FakeTransport { Script = new Queue<object?>([new object(), new IOException(), new IOException(), new object()]) };
+        var owner = NewOwner(t);
+        await WithTimeout(owner.ConnectAsync("A", budget: 3), "connect");
+
+        t.Created[0].TriggerDrop();
+        await UntilAsync(() => t.Attempts == 4 && owner.Snapshot("A").State == LampSessionState.Connected &&
+                             t.Created.Count == 2 && t.Created[1].DisposeCount == 0,
+            "两败一成：第 3 次重连成功");
+        Assert.Equal(4, t.Attempts); // 1 次首连 + 恰好 budget=3 次重连
+        Assert.Equal(LampSessionState.Connected, owner.Snapshot("A").State);
+        await owner.DisconnectAsync("A");
     }
 
     [Fact]

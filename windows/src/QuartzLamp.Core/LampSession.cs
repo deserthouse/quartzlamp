@@ -257,15 +257,10 @@ public sealed class LampSessionOwner : IAsyncDisposable
                     return;
                 }
 
-                // 意外断连：释放本句柄，预算-1，转入 Reconnecting。
+                // 意外断连：释放本句柄，转入 Reconnecting；本轮重连拿一份**全新预算**——对齐 Android：
+                // 每次意外断连都有 budget 次重连尝试，断连本身不占重连次数
                 await conn.DisposeAsync().ConfigureAwait(false);
-                _attemptsLeft--;
-                if (_attemptsLeft == 0)
-                {
-                    _state = LampSessionState.Failed;
-                    Publish();
-                    return;
-                }
+                _attemptsLeft = budget;
                 _state = LampSessionState.Reconnecting;
                 Publish();
                 if (!await BackoffOrStopAsync().ConfigureAwait(false)) return;
