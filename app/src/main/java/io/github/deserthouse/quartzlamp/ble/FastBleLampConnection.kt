@@ -15,6 +15,7 @@ import io.github.deserthouse.quartzlamp.protocol.ScanFilter
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
@@ -30,6 +31,18 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.ArrayDeque
 import java.util.Calendar
+import kotlin.coroutines.coroutineContext
+
+/**
+ * FastBle 入口缝（扫描/连接发起面）——默认直连 BleManager，生产路径不变。
+ * 存在理由：会话状态机（世代守卫/重连预算/终态归属）此前只能在真机上验证；JVM 单测注入
+ * 脚本化实现即可驱动 gatt 回调对真实类做回归。BleManager 的其余入口（notify/write/read/disconnect）保持直调。
+ */
+internal interface BleGateway {
+    fun scan(callback: BleScanCallback)
+    fun cancelScan()
+    fun connect(device: BleDevice, callback: BleGattCallback)
+}
 
 /**
  * FastBle 2.3.4 厂商同款实现（初始化参数照抄 docs/ble_protocol.md §1）。
@@ -41,9 +54,32 @@ import java.util.Calendar
  *   律动帧 conflate（最新值优先）；普通写不再穿插查询事务；
  * - 连接世代守卫：disconnect(mac) 使在途 connect 回调过期，迟到的 onConnectSuccess 被拒绝并关 gatt。
  */
-class FastBleLampConnection(private val app: android.app.Application) : LampConnection {
+class FastBleLampConnection private constructor(
+    private val app: android.app.Application?,
+    gateway: BleGateway?,
+) : LampConnection {
+
+    constructor(app: android.app.Application) : this(app, null)
+
+    /** 单测入口：注入脚本化网关，在 JVM 上驱动扫描/gatt 回调（见 [BleGateway]） */
+    internal constructor(gateway: BleGateway) : this(null, gateway)
 
     private val bleManager = BleManager.getInstance()
+
+    /** FastBle 入口：生产=直连 BleManager；单测=脚本化实现 */
+    private val gw: BleGateway = gateway ?: object : BleGateway {
+        override fun scan(callback: BleScanCallback) {
+            bleManager.scan(callback)
+        }
+
+        override fun cancelScan() {
+            bleManager.cancelScan()
+        }
+
+        override fun connect(device: BleDevice, callback: BleGattCallback) {
+            bleManager.connect(device, callback)
+        }
+    }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
     private val _state = MutableStateFlow(ConnState.DISCONNECTED)
@@ -103,12 +139,14 @@ class FastBleLampConnection(private val app: android.app.Application) : LampConn
         bleManager.init(app)
         bleManager
             .enableLog(true)
-            .setReConnectCount(3, 4000L)
+            .setReConnectCount(FB_RECONNECT_COUNT, FB_RECONNECT_INTERVAL_MS)
             .setMaxConnectCount(7)
-            .setConnectOverTime(99000L)
+            .setConnectOverTime(FB_CONNECT_OVERTIME_MS)
             .setOperateTimeout(5000)
         bleManager.initScanRule(
             BleScanRuleConfig.Builder()
+                // 直连（非厂商值 true，厂商为后台自动连接）——2026-11-24 审查登记的偏离项，
+                // 现值经真灯验证可连；事实与待决记录见 docs/ble_protocol.md §1
                 .setAutoConnect(false)
                 .setScanTimeOut(8000L)
                 .build()
@@ -125,7 +163,7 @@ class FastBleLampConnection(private val app: android.app.Application) : LampConn
         seen.clear()
         _scanned.value = emptyList()
         _state.value = ConnState.SCANNING
-        bleManager.scan(object : BleScanCallback() {
+        gw.scan(object : BleScanCallback() {
             override fun onScanStarted(success: Boolean) {
                 if (!success) {
                     // 启动失败（蓝牙关闭/栈冲突）：清扫描事实归位（UI 另有蓝牙开关卡）
@@ -154,7 +192,7 @@ class FastBleLampConnection(private val app: android.app.Application) : LampConn
     }
 
     override fun stopScan() {
-        bleManager.cancelScan()
+        gw.cancelScan()
         // 手动停止：清扫描事实再聚合——不误杀已建立连接，也绝不残留 SCANNING（R19-03）
         _scanning.value = false
         _state.value = aggregatedState()
@@ -164,12 +202,20 @@ class FastBleLampConnection(private val app: android.app.Application) : LampConn
 
     override fun connect(lamp: ScannedLamp) {
         val ble = seenDevices[lamp.mac] ?: return
+        // 会话已在途/已连接时忽略：仅 DISCONNECTED 行提供"连接"。FastBle 2.3.4 无取消连接 API，
+        // 对在途尝试再发 connect 会产生并行 connectGatt——彼此干扰，先败的一方还会把会话打成未连接
+        when (_sessions.value[lamp.mac]) {
+            SessionState.CONNECTING, SessionState.RECONNECTING, SessionState.CONNECTED -> return
+            else -> Unit
+        }
+        // 用户发起=接管：该 MAC 的既有重连任务（若有）终止，由本次尝试独立推进
+        reconnectJobs.remove(lamp.mac)?.cancel()
         val attempt = nextAttempt(lamp.mac)
         manualDisconnects.remove(lamp.mac)
         attemptTerminal[lamp.mac] = CompletableDeferred()
         setSession(lamp.mac, SessionState.CONNECTING)
         _state.value = aggregatedState()
-        bleManager.connect(ble, gattCallback(lamp.mac, attempt))
+        gw.connect(ble, gattCallback(lamp.mac, attempt))
     }
 
     /** 每次尝试分配单调 attempt id；全部回调按此判陈旧 */
@@ -212,14 +258,18 @@ class FastBleLampConnection(private val app: android.app.Application) : LampConn
         // R44-03：本分支直接操作回调持有的 gatt（disconnect/close）——
         // 权限由连接建立路径统一保证，lint 提示对齐 libs-src 既有豁免口径
         @Suppress("MissingPermission")
-        override fun onConnectSuccess(bleDevice: BleDevice, gatt: android.bluetooth.BluetoothGatt, status: Int) {
+        override fun onConnectSuccess(
+            bleDevice: BleDevice,
+            gatt: android.bluetooth.BluetoothGatt?,
+            status: Int
+        ) {
             if (stale()) {
                 // R44-03：过时成功只关闭**本回调持有的旧 gatt**（精确句柄）——
                 // 不经 bleManager 按键查找，避免误断同键已易主的新会话
                 Log.w("BLE", "[$mac] stale connect success rejected (owned gatt)")
                 try {
-                    gatt.disconnect()
-                    gatt.close()
+                    gatt?.disconnect()
+                    gatt?.close()
                 } catch (_: Exception) {
                 }
                 return
@@ -252,7 +302,7 @@ class FastBleLampConnection(private val app: android.app.Application) : LampConn
         override fun onDisConnected(
             isActiveDisConnected: Boolean,
             bleDevice: BleDevice,
-            gatt: android.bluetooth.BluetoothGatt,
+            gatt: android.bluetooth.BluetoothGatt?,
             status: Int
         ) {
             if (stale()) return // 陈旧断开回调零影响（R20-01）
@@ -271,38 +321,48 @@ class FastBleLampConnection(private val app: android.app.Application) : LampConn
     }
 
     /**
-     * 有限重连（R20-01 重写）：单 Job 串行推进——每次尝试等待其**终态**（成功/失败，
-     * 兜底 100s 超时≈FastBle 99s 连接超时+余量）再退避重试，尝试间不重叠；
-     * attemptGen 递增使上一尝试的迟到回调全部失效。
+     * 有限重连：单 Job 串行推进——每次尝试等待其**终态**（成功/失败；兜底见 [CONNECT_ATTEMPT_TIMEOUT_MS]）
+     * 再退避重试，尝试间不重叠；attemptGen 递增使上一尝试的迟到回调全部失效。
+     *
+     * 任务登记顺序（2026-11 审查修复）：scope 是 Main.immediate，本函数由 FastBle 的主线程回调调用，
+     * 默认 launch 会把协程体同步跑到首个挂起点；循环首轮要读 reconnectJobs[mac] 判断"自己是否仍是
+     * 当前任务"，若此刻尚未登记就会读到旧值并直接 break——重连一次都不发起。故 LAZY 创建 → 先登记 → 再启动。
+     * 任务结束（任何出口）按身份清表：表内只表示"活着的重连任务"，onConnectFail 据此区分首次连接。
      */
     private fun scheduleReconnect(mac: String) {
-        val job = scope.launch {
-            var attempts = 0
-            while (attempts < RECONNECT_ATTEMPTS) {
-                if (mac in manualDisconnects || reconnectJobs[mac] !== currentCoroutineContext()[Job]) break
-                delay(RECONNECT_INTERVAL_MS)
-                if (mac in manualDisconnects || reconnectJobs[mac] !== currentCoroutineContext()[Job]) break
-                val ble = seenDevices[mac] ?: break
-                attempts++
-                val attempt = nextAttempt(mac)
-                val terminal = CompletableDeferred<Boolean>()
-                attemptTerminal[mac] = terminal
-                setSession(mac, SessionState.CONNECTING)
-                _state.value = aggregatedState()
-                bleManager.connect(ble, gattCallback(mac, attempt))
-                val ok = withTimeoutOrNull(CONNECT_ATTEMPT_TIMEOUT_MS) { terminal.await() } ?: false
-                if (ok) return@launch // onConnectSuccess 已置 CONNECTED
-                // R44-02：单次失败不终结预算——循环继续（退避在轮首 delay）
-            }
-            // 预算耗尽/被取代/手动断开：非 CONNECTED 才落 DISCONNECTED
-            if (reconnectJobs[mac] === currentCoroutineContext()[Job] &&
-                mac !in manualDisconnects && _sessions.value[mac] != SessionState.CONNECTED
-            ) {
-                setSession(mac, SessionState.DISCONNECTED)
-                _state.value = aggregatedState()
+        val job = scope.launch(start = CoroutineStart.LAZY) {
+            try {
+                var attempts = 0
+                while (attempts < RECONNECT_ATTEMPTS) {
+                    if (mac in manualDisconnects || reconnectJobs[mac] !== currentCoroutineContext()[Job]) break
+                    delay(RECONNECT_INTERVAL_MS)
+                    if (mac in manualDisconnects || reconnectJobs[mac] !== currentCoroutineContext()[Job]) break
+                    val ble = seenDevices[mac] ?: break
+                    attempts++
+                    val attempt = nextAttempt(mac)
+                    val terminal = CompletableDeferred<Boolean>()
+                    attemptTerminal[mac] = terminal
+                    setSession(mac, SessionState.CONNECTING)
+                    _state.value = aggregatedState()
+                    gw.connect(ble, gattCallback(mac, attempt))
+                    val ok = withTimeoutOrNull(CONNECT_ATTEMPT_TIMEOUT_MS) { terminal.await() } ?: false
+                    if (ok) return@launch // onConnectSuccess 已置 CONNECTED
+                    // R44-02：单次失败不终结预算——循环继续（退避在轮首 delay）
+                }
+                // 预算耗尽/被取代/手动断开：非 CONNECTED 才落 DISCONNECTED
+                if (reconnectJobs[mac] === currentCoroutineContext()[Job] &&
+                    mac !in manualDisconnects && _sessions.value[mac] != SessionState.CONNECTED
+                ) {
+                    setSession(mac, SessionState.DISCONNECTED)
+                    _state.value = aggregatedState()
+                }
+            } finally {
+                // 仅当表中仍是自己时才清（被 disconnect()/新任务替换过的条目不归本任务管）
+                if (reconnectJobs[mac] === coroutineContext[Job]) reconnectJobs.remove(mac)
             }
         }
         reconnectJobs[mac] = job
+        job.start()
     }
 
     // ━━━ 写（每设备队列串行；律动 conflate）与定时查询事务 ━━━
@@ -421,7 +481,19 @@ class FastBleLampConnection(private val app: android.app.Application) : LampConn
         const val RECONNECT_INTERVAL_MS = 4_000L
         const val TX_TIMEOUT_MS = 20_000L
 
-        /** 单次连接尝试超时：≥FastBle setConnectOverTime(99s)+余量 */
-        const val CONNECT_ATTEMPT_TIMEOUT_MS = 100_000L
+        /** FastBle 初始化参数（厂商同款，docs/ble_protocol.md §1）——init() 与兜底超时共用同一来源 */
+        private const val FB_RECONNECT_COUNT = 3
+        private const val FB_RECONNECT_INTERVAL_MS = 4_000L
+        private const val FB_CONNECT_OVERTIME_MS = 99_000L
+
+        /**
+         * 单轮重连的终态兜底超时。一轮 = 我方一次 connect 调用；FastBle 在其**内部**还会对连接失败
+         * 重试 [FB_RECONNECT_COUNT] 次（BleBluetooth.MSG_CONNECT_FAIL），每次最长 [FB_CONNECT_OVERTIME_MS]，
+         * 整段序列都失败才回调 onConnectFail。兜底必须覆盖整段序列——否则我方会在 FastBle 仍在重试时
+         * 叠发新连接（并行 connectGatt）。正常情况下终态先到，兜底不参与计时。
+         */
+        const val CONNECT_ATTEMPT_TIMEOUT_MS: Long =
+            (FB_RECONNECT_COUNT + 1) * FB_CONNECT_OVERTIME_MS +
+                FB_RECONNECT_COUNT * FB_RECONNECT_INTERVAL_MS + 12_000L
     }
 }
