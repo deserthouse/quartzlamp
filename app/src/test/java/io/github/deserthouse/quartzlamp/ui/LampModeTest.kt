@@ -46,7 +46,6 @@ class LampModeTest {
         vm.setColor(300, 1f, send = true) // 先落在单色
         vm.setColor(30, 1f, send = false) // 预览
         assertEquals(LampMode.Static(300, 1f), vm.lampMode.value) // 模式未变
-        assertTrue(lamp.sentFrames.none { it.startsWith("BC04060") && it.contains("01E") }.not() || true)
         // 关键断言：无新增 BC04 帧（send=false 不发帧）
         val bc04 = lamp.sentFrames.count { it.startsWith("BC04") }
         assertEquals(1, bc04)
