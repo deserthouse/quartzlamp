@@ -256,6 +256,16 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
         lamp.send(LampFrames.micSensitivity(_mic.value.sensitivity.coerceIn(0, 100)))
     }
 
+    /**
+     * 会话就绪初始化三帧（R20-04）：灯载源 00 + 类型 + 灵敏度——按 MAC 定向。
+     * 防灯被旧版/原厂置为手机源后无法由本控制器恢复。声源开关不进 UI（D1）。
+     */
+    private suspend fun sendPickupInit(mac: String) {
+        lamp.sendTo(mac, LampFrames.micSource(false))
+        lamp.sendTo(mac, LampFrames.micType(_mic.value.type))
+        lamp.sendTo(mac, LampFrames.micSensitivity(_mic.value.sensitivity.coerceIn(0, 100)))
+    }
+
     // ━━━ 定时：槽位编辑/保存/读取（全部 update{} 原子改） ━━━
 
     /** 草稿编辑：只改本槽并标 dirty（R19-09：编辑后"已读回"文案不得延续） */
@@ -317,8 +327,12 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
                         s.revision != revAtRequest -> s.copy(busy = false) // 读取期间有新编辑：丢弃旧观测
                         info == null -> s.copy(busy = false, phase = TimerPhase.Failed)
                         !info.isSet ->
-                            if (openSlot) TimerSlot(phase = TimerPhase.Idle)
-                            else TimerSlot(hour = 23, minute = 0, phase = TimerPhase.Idle) // 关灯槽保留 23 点默认
+                            // 未设置读回同样是"读回重建"：revision 须单调推进（归零会让在途保存结果
+                            // 匹配到内容不同的新草稿）；关灯槽保留 23 点默认
+                            if (openSlot) TimerSlot(revision = s.revision + 1, phase = TimerPhase.Idle)
+                            else TimerSlot(
+                                hour = 23, minute = 0, revision = s.revision + 1, phase = TimerPhase.Idle
+                            )
                         else -> TimerSlot(
                             hour = info.hour,
                             minute = info.minute,
@@ -347,11 +361,13 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
         }
     }
 
-    /** 定时读取目标：首个已连接灯（名称缺失退 MAC） */
+    /** 定时读取目标：首个已连接灯（名称优先取 knownLamps 登记——重扫清空 scanned 时不退化为 MAC，与设备行一致） */
     private fun connectedLampName(): String? {
         val mac = lamp.sessions.value.filterValues { it == SessionState.CONNECTED }.keys.firstOrNull()
             ?: return null
-        return lamp.scanned.value.firstOrNull { it.mac == mac }?.name ?: mac
+        return _knownLamps.value[mac]?.name
+            ?: lamp.scanned.value.firstOrNull { it.mac == mac }?.name
+            ?: mac
     }
 
     private fun TimerUiState.slot(openSlot: Boolean): TimerSlot = if (openSlot) open else close
@@ -379,12 +395,14 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
         viewModelScope.launch {
             lamp.sessionReady.collect { ev ->
                 // Q2/R44-04 附：初始化按 MAC 定向（不再向全部旧灯广播）
-                fire {
-                    lamp.sendTo(ev.mac, LampFrames.micSource(false))
-                    lamp.sendTo(ev.mac, LampFrames.micType(_mic.value.type))
-                    lamp.sendTo(ev.mac, LampFrames.micSensitivity(_mic.value.sensitivity))
-                }
+                fire { sendPickupInit(ev.mac) }
             }
+        }
+        // 补偿：VM 建立时已处于 CONNECTED 的会话收不到上面的就绪事件（SharedFlow 无重放）——
+        // 其就绪发生在没有 ViewModel 的期间（如 Activity 结束后后台自动重连成功）。
+        // 三帧是幂等写，补发一次无副作用；先订阅后补偿，两段之间新就绪的会话由收集器覆盖。
+        lamp.sessions.value.filterValues { it == SessionState.CONNECTED }.keys.forEach { mac ->
+            fire { sendPickupInit(mac) }
         }
         // CR-1：全部会话离开 CONNECTED 时复位灯效投递位——重连后新会话从未收到 BC06，
         // 旧投递证据不得延续（否则"运行中"徽章虚标）

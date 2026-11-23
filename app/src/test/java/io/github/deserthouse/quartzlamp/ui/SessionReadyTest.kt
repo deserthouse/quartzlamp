@@ -30,6 +30,26 @@ class SessionReadyTest {
         Unit
     }
 
+    @Test fun `VM建立时已连接的会话_补偿发送初始化三帧`() {
+        // 就绪事件发生在没有 ViewModel 的期间（如后台自动重连成功）：SharedFlow 无重放，
+        // 仅靠订阅会永久漏发——VM 建立时须对已连接会话补发一次
+        val lamp = TestLampConnection()
+        lamp.connect(ScannedLamp("A", "AA:BB", -50))
+        assertEquals("前置：连接时无订阅者，尚无初始化帧", 0, lamp.sentFrames.count { it.startsWith("BC0F") })
+        val vm = AppViewModel(lamp)
+        assertTrue("补发灯载麦源 BC0F0100", lamp.sentFrames.contains("BC0F010055"))
+        assertTrue("补发拾音类型 BC1101", lamp.sentFrames.contains("BC11010155"))
+        assertTrue("补发拾音灵敏度 BC1201", lamp.sentFrames.any { it.startsWith("BC1201") })
+        Unit
+    }
+
+    @Test fun `VM建立时无已连接会话_不补发`() {
+        val lamp = TestLampConnection()
+        val vm = AppViewModel(lamp)
+        assertTrue(lamp.sentFrames.none { it.startsWith("BC0F") })
+        Unit
+    }
+
     @Test fun `每灯独立触发第二盏也有三帧`() {
         val lamp = TestLampConnection()
         val vm = AppViewModel(lamp)

@@ -135,6 +135,26 @@ class AppViewModelTimerTest {
     @Test fun `读回记录读取目标灯-R19-09`() {
         lamp.timerRead = { setFrame(7, 30, 0x15, open = true) }
         vm.queryTimerSlot(true)
-        assertEquals("AA", vm.timer.value.open.readFrom) // scanned 空时退 MAC
+        assertEquals("AA", vm.timer.value.open.readFrom) // 无登记无扫描结果时退 MAC
+    }
+
+    @Test fun `读取目标_已登记名称优先于MAC-重扫后不退化`() {
+        // 读取目标=首个已连接灯（@Before 已直连 AA）；经 VM.connect 为同一盏登记名称（AV04-05 knownLamps）。
+        // scanned 为空（重扫清空）时读取目标仍应显示名称，与设备行一致
+        vm.connect(io.github.deserthouse.quartzlamp.ble.ScannedLamp("台灯", "AA", -50))
+        assertTrue(lamp.scanned.value.isEmpty())
+        lamp.timerRead = { setFrame(7, 30, 0x15, open = true) }
+        vm.queryTimerSlot(true)
+        assertEquals("已登记名称应优先于 MAC", "台灯", vm.timer.value.open.readFrom)
+    }
+
+    @Test fun `未设置读回_修订号保持单调不归零`() {
+        vm.updateTimerSlot(true, 9, 45, List(7) { true }) // revision: 0 → 1
+        assertEquals(1, vm.timer.value.open.revision)
+        lamp.timerRead = { unsetFrame(open = true) }
+        vm.queryTimerSlot(true)
+        val slot = vm.timer.value.open
+        assertFalse(slot.loaded)
+        assertEquals("未设置分支同样要推进修订号（在途保存结果按修订号匹配草稿）", 2, slot.revision)
     }
 }
