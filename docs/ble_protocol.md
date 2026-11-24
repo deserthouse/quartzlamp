@@ -25,17 +25,36 @@
 autoConnect 出处（2026-11-24 字节码复核，`MyApplication.setScanRule` `2f68e0-2f690e`）：`<init>` 把
 `isAutoConnect` 字段置 true（`2f64fa`），`setScanRule()` 以 `setAutoConnect(isAutoConnect)` 传入——
 是厂商**显式置位**，不是 FastBle 的默认值（`BleScanRuleConfig` 默认 false；此前记作"（默认）"有误）。
+`setScanRule()` 全 dex 仅 `onCreate` 一处调用（`2f6826`），所以烤进 FastBle 连接模式的是字段**初值** true，此后不变。
 
-**传输层行为（移植与重连实现须知）** ✅：
-- `setReConnectCount(3, 4000ms)` 是 FastBle **内部**的连接失败重试：一次 connect 调用失败后自行重试
-  3 次（间隔 4s，`BleBluetooth` 的 `MSG_CONNECT_FAIL` 分支），整段都失败才回调 `onConnectFail`。
-  它**不处理**已连接后的意外断连——意外断连直接回调 `onDisConnected`，重连必须由上层触发。
+autoConnect 的另一半事实（同批复核）：`isAutoConnect` 字段本身会在**每次扫描入口**被
+`MyApplication.startScan(boolean)`（写入点 `2f69ac`）重写——手动点扫描按钮传 **false**
+（`BleActivity.onClick` `2f2624`）、`onResume`（`2f2782`）与控制页 `onCreate`（`2f2ff0`）传 **true**。
+重写后的值只用于厂商自己的逻辑：扫到设备时
+`if (isAutoConnect && isBleReConnect(device)) connect(device)`（`2f6758-2f676c`）。
+即厂商的"重连"是**扫描触发**的（回到页面就扫描，扫到待重连的灯就连接），不是定时退避的盲连。
+
+**传输层行为（移植与重连实现须知）** ✅（收编源 `BleBluetooth` / `BleConnector`）：
+- 连接失败后的重试只有一条路径：`MSG_CONNECT_FAIL`（连接建立阶段收到断开）且 `connectRetryCount < 3` 时
+  延迟 4s 重发 connect——即 `setReConnectCount(3, 4000ms)` 的含义；一段序列最多 4 次连接尝试，
+  整段都失败才回调 `onConnectFail`。另两条终止路径**不重试**、直接回调 `onConnectFail`：
+  `MSG_CONNECT_OVER_TIME`（99s 内没有任何连接状态变化）与 `MSG_DISCOVER_FAIL`。
+- 已连接但服务发现没有结果时**没有超时**：`discoverServices()` 返回 true 之后若既等不到
+  `onServicesDiscovered` 也等不到断开，传输层不会回调任何终态（连接成功时 99s 超时消息已被移除）。
+  上层的终态兜底超时就是为这种情况准备的。
+- FastBle **不处理**已连接后的意外断连——意外断连直接回调 `onDisConnected`，重连必须由上层触发。
+  它也**没有取消在途连接的接口**：上层"取消"之后，连接中的对象仍会在后台走完上述重试序列
+  （公开 API 只能断开已进入已连接表的设备）。
+- 已连接设备登记表按设备键**先到先得**（`MultipleBluetoothController.addBleBluetooth`：键已存在就不登记），
+  notify / write / read 都按设备键查这张表。同键出现两个连接对象时，先连上的占位。
 - 每个操作带 `setOperateTimeout`（5s）：到点回调失败；若设备应答在 5s 后才到，会对**同一次操作再回调一次**
   真实结果。上层必须把传输回调当作"可能多次"处理。
 
 **我方实现与上表的对应**（Android `FastBleLampConnection`）：初始化参数逐项照抄；**autoConnect 为 `false`
 （直连），与厂商不同**——自 M1 骨架起即如此、无决策记录；现值经真灯验证可连（设备刚被扫到时直连更快、
-失败有界）。是否回归厂商值属待决项，需真机对比后再定。
+失败有界）。是否回归厂商值属待决项，需真机对比后再定。注意这不是改一个开关的事：
+① 厂商的"重连"靠扫描触发，其字段在每次扫描入口被重写；②（推断，未实测）若仅把 autoConnect 改成 true，
+离线的灯不会回断开事件，连接会落到 99s 超时那条**不重试**的路径，"每轮最多 4 次连接尝试"的推导随之不成立。
 
 **回读**：定时信息用 GATT **read**（FFF3）读回，notify 只注册不参与 UI（回调仅打日志）。
 **多灯广播**：write 遍历所有已连接设备逐个下发。
@@ -114,3 +133,6 @@ mingDu（明度）=600 · speed=50 · sensitivity=50
 - 2026-11-24 审查复核（帧表无变化）：§1 autoConnect 出处更正——厂商显式置 true（`<init>` +
   `setScanRule`），非 FastBle 默认值；登记我方实现使用 `false` 的偏离（待决项）；补传输层内部重试与
   操作超时"迟到再回调一次"的语义，供 Windows 移植与重连实现参照。
+- 2026-11-24 独立复审后补充（帧表无变化）：autoConnect 字段在每次扫描入口被 `startScan(boolean)` 重写
+  （手动扫描 false / 进入页面 true）、厂商重连为扫描触发；传输层行为补全——两条不重试的终止路径、
+  服务发现无超时、无取消在途连接的接口、已连接表先到先得。

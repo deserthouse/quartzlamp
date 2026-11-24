@@ -19,9 +19,10 @@ sound-reactive lamp ("拾音灯"), rebuilt from scratch.
 - **Device**: power as the primary action + brightness (a global parameter — applies in
   both static-color and effect modes) + connection management (multi-lamp, per-device
   connect/disconnect/reconnect; auto-reconnect after unexpected drops — 3 rounds, 4s
-  apart, cancellable at any time; fixed on `main`, real-lamp re-verification pending;
-  manual disconnects never fight back) + lamp pickup configuration (four pickup styles
-  and sensitivity for the lamp's own microphone)
+  apart, cancellable at any time. The released v0.5.7 does **not** include the
+  auto-reconnect fix: it is on `main`, not yet verified on a real lamp, and ships with
+  the next release; manual disconnects never fight back) + lamp pickup configuration
+  (four pickup styles and sensitivity for the lamp's own microphone)
 - **Effects**: `Static | Dynamic` segmented toggle, applied exclusively —
   Static = hue wheel + 8 presets (BC04 static color); Dynamic = 153 built-in effects
   (9 categories × 17) with original names, name-color hint bars, speed/sensitivity
@@ -39,9 +40,10 @@ sound-reactive lamp ("拾音灯"), rebuilt from scratch.
 - minSdk 31 / targetSdk 37 · single `:app` module, no DI · emulators auto-switch to a
   fake lamp (`FakeLampConnection`) for development without hardware
 - The repo also contains a **Windows client port in progress** (`windows/`): the protocol
-  library, GATT queue and session layer are ported with unit tests
-  (`dotnet test windows/tests/QuartzLamp.Tests`); there is no usable UI yet and it is
-  unreleased — the Android app remains the current deliverable
+  library, GATT queue and session layer are ported with unit tests (run
+  `dotnet test tests/QuartzLamp.Tests` from inside `windows/`, where `global.json` pins
+  the .NET 10 SDK); there is no usable UI yet and it is unreleased — the Android app
+  remains the current deliverable
 
 ## Build
 
