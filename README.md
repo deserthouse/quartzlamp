@@ -9,16 +9,15 @@
 
 Lenze Tech「拾音灯」硬件的自有 Android 控制器——Material 3 Expressive 重制版。
 
-> **当前状态**：[v0.5.7](https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.7)（versionCode 16，2026-10-24；变更明细见 [CHANGELOG](CHANGELOG.md)）；模拟器与协议层已验，真灯验收进度与边界以 `project_status.md` §7 与 `docs/acceptance.md` 为准——支持硬件为 Lenze Tech 拾音灯（蓝牙 BLE）。源码构建见下文。
+> **当前状态**：[v0.5.8](https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.8)（versionCode 17，2026-11-24；变更明细见 [CHANGELOG](CHANGELOG.md)）；模拟器与协议层已验，真灯验收进度与边界以 `project_status.md` §7 与 `docs/acceptance.md` 为准——支持硬件为 Lenze Tech 拾音灯（蓝牙 BLE）。源码构建见下文。
 
 [源码构建](#构建) · [真灯验收记录](docs/acceptance.md) · [更新日志](CHANGELOG.md)
 
 ## 功能（三 tab：设备 / 灯效 / 定时）
 
 - **设备**：电源主操作 + 亮度（全局参数，单色/灯效模式均生效）+ 连接管理
-  （多灯并行、行级连接/断开/重连，意外断连自动重连 3 轮、轮间 4s、可随时取消。
-  已发布的 v0.5.7 **不含**自动重连修复——修复在 `main` 上，尚未经真机验证，将随下一版发布；
-  主动断开不抢连）+
+  （多灯并行、行级连接/断开/重连，意外断连自动重连 3 轮、轮间 4s、可随时取消；
+  自动重连修复尚未经真机验证；主动断开不抢连）+
   灯端拾音配置（四种拾音风格与灵敏度，对灯自带麦克风生效）
 - **灯效**：`静态 | 动态` 分段切换，互斥应用——
   静态=色环取色+8 预设（BC04 静态颜色）；动态=153 种内置灯效（9 分类 × 17）+

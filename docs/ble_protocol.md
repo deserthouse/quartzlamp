@@ -39,6 +39,8 @@ autoConnect 的另一半事实（同批复核）：`isAutoConnect` 字段本身�
   延迟 4s 重发 connect——即 `setReConnectCount(3, 4000ms)` 的含义；一段序列最多 4 次连接尝试，
   整段都失败才回调 `onConnectFail`。另两条终止路径**不重试**、直接回调 `onConnectFail`：
   `MSG_CONNECT_OVER_TIME`（99s 内没有任何连接状态变化）与 `MSG_DISCOVER_FAIL`。
+  （细节：`MSG_DISCOVER_FAIL` 自身不重试，但不清除此前已排队的 `MSG_RECONNECT`——极少数交错下同一对象
+  还会再连一次；`MSG_CONNECT_OVER_TIME` 不存在这种并存。）
 - 已连接但服务发现没有结果时**没有超时**：`discoverServices()` 返回 true 之后若既等不到
   `onServicesDiscovered` 也等不到断开，传输层不会回调任何终态（连接成功时 99s 超时消息已被移除）。
   上层的终态兜底超时就是为这种情况准备的。

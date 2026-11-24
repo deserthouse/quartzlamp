@@ -6,6 +6,8 @@
 
 ## [Unreleased]
 
+## [0.5.8] - 2026-11-24 (versionCode 17)
+
 ### 修复
 - 意外断连后的自动重连此前在真实设备路径上一次都不会发起（会话停在"重连中"），现已恢复：
   轮间退避 4s、预算 3 轮、可随时取消，预算耗尽回到"未连接"。
@@ -33,11 +35,15 @@
 ### 已知问题
 - "取消"只停止应用侧的连接与重连计划，不中断传输层已在进行的连接尝试（传输层库不提供该接口），
   其后台重试最长还会持续数分钟。
-- 界面关闭期间在后台完成的自动重连不会重新下发拾音配置（声源 / 类型 / 灵敏度）。如灯端拾音此时表现异常，
-  在设备页重新点一次拾音类型或调整一次灵敏度即可恢复。
+- 首次连接没有超时兜底：极少数情况下（传输层的服务发现一直无响应）会话会停在"连接中"，直到点"取消"。
+- 拾音类型与灵敏度只在界面存活期间记忆：界面被系统回收后重新打开时显示默认值（经典 / 50），而灯端可能
+  仍是之前的设置；此后若发生重连，灯会被写成界面当前显示的值。重新选择一次即可。
+- 界面已被回收期间在后台完成的自动重连不会重新下发拾音配置。如灯端拾音此时表现异常，在设备页重新点一次
+  拾音类型或调整一次灵敏度即可恢复。
 
 ### 验证边界
-- 上述重连相关修复的证据为源码走查 + 发布包内真实实现的单元测试（虚拟时钟、脚本化回调），并经一轮独立复审复核；
+- 上述重连相关修复的证据为源码走查 + 发布包内真实实现的单元测试（虚拟时钟、脚本化回调），并经两轮独立复审复核
+  （修复者之外的会话：一轮覆盖全项目审查与修复，一轮覆盖发版前的增量）；
   **尚未经真机 / 真灯验证**，射频条件下的重连表现待 `docs/acceptance.md` 第 9~9d 步确认。
   视觉项本轮无变化、未重新验证。
 
@@ -211,7 +217,7 @@ AVD 复审整改：构造期 NPE、定时互斥阶段模型、灯效页整页滚
 
 MVP 与 M1-M3 迭代（拆解/重建/控制闭环）。内部构建（未发布渠道）。
 
-[Unreleased]: https://github.com/deserthouse/quartzlamp/compare/v0.5.7...HEAD
+[Unreleased]: https://github.com/deserthouse/quartzlamp/compare/v0.5.8...HEAD
 [0.5.0]: https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.0
 [0.5.1]: https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.1
 [0.5.2]: https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.2
@@ -220,3 +226,4 @@ MVP 与 M1-M3 迭代（拆解/重建/控制闭环）。内部构建（未发布�
 [0.5.5]: https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.5
 [0.5.6]: https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.6
 [0.5.7]: https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.7
+[0.5.8]: https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.8

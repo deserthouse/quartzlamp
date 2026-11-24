@@ -10,7 +10,7 @@
 An unofficial Material 3 Expressive Android controller for the Lenze Tech
 sound-reactive lamp ("拾音灯"), rebuilt from scratch.
 
-> **Status**: [v0.5.7](https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.7) (versionCode 16, 2026-10-24; see [CHANGELOG](CHANGELOG.md)); emulator and protocol layers verified — real-lamp acceptance progress and boundaries per `project_status.md` §7 and `docs/acceptance.md`. Supported hardware: the Lenze Tech sound-reactive lamp (Bluetooth BLE). Building from source below.
+> **Status**: [v0.5.8](https://github.com/deserthouse/quartzlamp/releases/tag/v0.5.8) (versionCode 17, 2026-11-24; see [CHANGELOG](CHANGELOG.md)); emulator and protocol layers verified — real-lamp acceptance progress and boundaries per `project_status.md` §7 and `docs/acceptance.md`. Supported hardware: the Lenze Tech sound-reactive lamp (Bluetooth BLE). Building from source below.
 
 [Build from source](#build) · [Hardware acceptance notes](docs/acceptance.md) · [Changelog](CHANGELOG.md)
 
@@ -19,9 +19,8 @@ sound-reactive lamp ("拾音灯"), rebuilt from scratch.
 - **Device**: power as the primary action + brightness (a global parameter — applies in
   both static-color and effect modes) + connection management (multi-lamp, per-device
   connect/disconnect/reconnect; auto-reconnect after unexpected drops — 3 rounds, 4s
-  apart, cancellable at any time. The released v0.5.7 does **not** include the
-  auto-reconnect fix: it is on `main`, not yet verified on a real lamp, and ships with
-  the next release; manual disconnects never fight back) + lamp pickup configuration
+  apart, cancellable at any time; the auto-reconnect fix has not yet been verified on
+  a real lamp; manual disconnects never fight back) + lamp pickup configuration
   (four pickup styles and sensitivity for the lamp's own microphone)
 - **Effects**: `Static | Dynamic` segmented toggle, applied exclusively —
   Static = hue wheel + 8 presets (BC04 static color); Dynamic = 153 built-in effects
