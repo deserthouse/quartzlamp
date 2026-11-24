@@ -3,7 +3,7 @@
 ## Icon Artwork / 图标素材
 
 应用图标（launcher adaptive/themed 与 README 展示图）为**原创绘制素材**：红翅绿鸠
-昼/夜双态由项目自有流程清理合成（生成说明见仓库内开发文档）。
+昼/夜双态由项目自有流程清理合成。
 
 - 第三方许可：仅 FastBle 2.3.4 源码收编部分为 Apache-2.0（见 `third_party/`）；
   图标素材**不适用** Twemoji/Twitter/CC-BY 署名——此前版本（≤0.5.0）的 Twemoji/CC-BY
