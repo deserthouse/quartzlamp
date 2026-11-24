@@ -30,16 +30,24 @@ class SessionReadyTest {
         Unit
     }
 
-    @Test fun `VM建立时已连接的会话_补偿发送初始化三帧`() {
-        // 就绪事件发生在没有 ViewModel 的期间（如后台自动重连成功）：SharedFlow 无重放，
-        // 仅靠订阅会永久漏发——VM 建立时须对已连接会话补发一次
+    @Test fun `VM重建遇上已连接会话_不得向灯补发拾音配置`() {
+        // 拾音类型/灵敏度只存在 ViewModel 里，不跨实例：用户选了"动感"后按返回退出（Activity 结束，
+        // 进程与 BLE 连接仍在），再进来时新 VM 只有默认值（经典/50）。此时若对已连接的灯"补发"
+        // 三帧，等于悄悄把灯重置回默认——这是正常路径上的行为变化，不允许。
         val lamp = TestLampConnection()
-        lamp.connect(ScannedLamp("A", "AA:BB", -50))
-        assertEquals("前置：连接时无订阅者，尚无初始化帧", 0, lamp.sentFrames.count { it.startsWith("BC0F") })
-        val vm = AppViewModel(lamp)
-        assertTrue("补发灯载麦源 BC0F0100", lamp.sentFrames.contains("BC0F010055"))
-        assertTrue("补发拾音类型 BC1101", lamp.sentFrames.contains("BC11010155"))
-        assertTrue("补发拾音灵敏度 BC1201", lamp.sentFrames.any { it.startsWith("BC1201") })
+        val first = AppViewModel(lamp)
+        lamp.connect(ScannedLamp("A", "AA:BB", -50)) // 首次会话：三帧照常下发
+        first.setMicType(3) // 用户选"动感"
+        assertTrue(lamp.sentFrames.contains("BC11010355"))
+        val before = lamp.sentFrames.size
+
+        val second = AppViewModel(lamp) // Activity 重建：新 VM，灯仍然连接
+        assertEquals("新 VM 的拾音状态是默认值（不跨实例）", 1, second.mic.value.type)
+        val written = lamp.sentFrames.drop(before)
+        assertTrue(
+            "VM 重建不得向已连接的灯写任何拾音帧，实际写入：$written",
+            written.none { it.startsWith("BC0F") || it.startsWith("BC11") || it.startsWith("BC12") }
+        )
         Unit
     }
 

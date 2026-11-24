@@ -398,12 +398,10 @@ class AppViewModel(private val lamp: LampConnection) : ViewModel() {
                 fire { sendPickupInit(ev.mac) }
             }
         }
-        // 补偿：VM 建立时已处于 CONNECTED 的会话收不到上面的就绪事件（SharedFlow 无重放）——
-        // 其就绪发生在没有 ViewModel 的期间（如 Activity 结束后后台自动重连成功）。
-        // 三帧是幂等写，补发一次无副作用；先订阅后补偿，两段之间新就绪的会话由收集器覆盖。
-        lamp.sessions.value.filterValues { it == SessionState.CONNECTED }.keys.forEach { mac ->
-            fire { sendPickupInit(mac) }
-        }
+        // 这里**不**对"VM 建立时已连接的会话"补发初始化帧。拾音类型/灵敏度只存在本 VM 里、不跨实例：
+        // 用户按返回退出后重进（进程与 BLE 连接仍在），新 VM 只有默认值，补发等于悄悄把灯重置回默认。
+        // 由此留一个已知局限：会话在没有 ViewModel 的期间建立（如后台自动重连成功）时收不到这三帧，
+        // 灯端拾音可能保持断连前的状态——用户调整一次拾音类型或灵敏度即可恢复。
         // CR-1：全部会话离开 CONNECTED 时复位灯效投递位——重连后新会话从未收到 BC06，
         // 旧投递证据不得延续（否则"运行中"徽章虚标）
         viewModelScope.launch {
