@@ -169,8 +169,12 @@ public sealed class LampSessionOwner : IAsyncDisposable
                 return;
             }
 
-            using var linked = CancellationTokenSource.CreateLinkedTokenSource(_userCts.Token, ct);
-            _runTask = RunAsync(budget, linked.Token);
+            // 发起方令牌只在"首连阶段"桥接到用户令牌：本方法返回（首连成功或终态）时注册随之注销，
+            // 后台循环只绑定 _userCts.Token。
+            // 此前把两者的链接令牌交给循环、却在首连返回时释放了链接源——释放后用户令牌的取消不再传播：
+            // 重连尝试在途时用户断开会挂起到该次尝试自行结束，且尝试成功时会话会在断开之后还发布一次 Connected。
+            using var callerBridge = ct.Register(() => _userCts.Cancel());
+            _runTask = RunAsync(budget, _userCts.Token);
             var settled = await Task.WhenAny(_firstConnected.Task, _terminal.Task).ConfigureAwait(false);
             if (settled == _terminal.Task)
                 await _terminal.Task.ConfigureAwait(false);

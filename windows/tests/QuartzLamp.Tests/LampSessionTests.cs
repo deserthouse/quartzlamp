@@ -45,11 +45,20 @@ public sealed class LampSessionTests
         public List<FakeConnection> Created = new();
         public int Attempts;
 
+        /// <summary>脚本项：挂起直到令牌取消——模拟"认令牌"的传输层在途尝试（令牌不取消则永不结束）。</summary>
+        public static readonly object HangUntilCancelled = new();
+
         public Task<IBleConnection> ConnectAsync(string deviceId, CancellationToken ct)
         {
             Interlocked.Increment(ref Attempts);
             if (ct.IsCancellationRequested) throw new OperationCanceledException(ct);
             var next = Script.Count > 0 ? Script.Dequeue() : new IOException("script exhausted");
+            if (next == HangUntilCancelled)
+            {
+                var tcs = new TaskCompletionSource<IBleConnection>(TaskCreationOptions.RunContinuationsAsynchronously);
+                ct.Register(() => tcs.TrySetCanceled(ct));
+                return tcs.Task;
+            }
             if (next is Exception ex) return Task.FromException<IBleConnection>(ex);
             if (next is Task<IBleConnection> pending) return pending; // 迟到完成脚本项：原样返回挂起任务
             if (next is IBleConnection existing) return Task.FromResult(existing);
@@ -183,6 +192,34 @@ public sealed class LampSessionTests
         Assert.Equal(4, t.Attempts); // 必须真的发起新的连接尝试，而不是直接返回旧终态
         Assert.Equal(LampSessionState.Connected, owner.Snapshot("A").State);
         await owner.DisconnectAsync("A");
+    }
+
+    [Fact]
+    public async Task 首连返回后_重连尝试在途时用户断开_及时生效且不再发布Connected()
+    {
+        // 首连返回之后会话在后台重连；用户在"重连尝试进行中"（不是退避期）断开。
+        // 传输层认令牌：该尝试挂起直到令牌取消。断开必须能取消到它，否则 DisconnectAsync 会挂起到尝试自行结束，
+        // 且尝试成功时会话会在用户已要求断开之后再发布一次 Connected。
+        var t = new FakeTransport { Script = new Queue<object?>([new object(), FakeTransport.HangUntilCancelled]) };
+        var owner = NewOwner(t);
+        var states = new System.Collections.Concurrent.ConcurrentQueue<LampSessionState>();
+        owner.StateChanged += s => states.Enqueue(s.State);
+        await WithTimeout(owner.ConnectAsync("A", budget: 3), "connect");
+
+        t.Created[0].TriggerDrop();
+        await UntilAsync(() => t.Attempts == 2, "重连尝试已发起并在途");
+
+        await WithTimeout(owner.DisconnectAsync("A"), "disconnect during in-flight reconnect attempt");
+        await UntilAsync(() => states.ToArray().LastOrDefault() == LampSessionState.Disconnected, "循环已停并发布 Disconnected");
+
+        Assert.Equal(
+            new[]
+            {
+                LampSessionState.Connecting, LampSessionState.Connected,          // 首连
+                LampSessionState.Reconnecting, LampSessionState.Connecting,       // 意外断连 → 重连尝试在途
+                LampSessionState.Disconnected,                                   // 用户断开：到此为止，不得再出现 Connected
+            },
+            states.ToArray());
     }
 
     [Fact]

@@ -121,6 +121,10 @@ public sealed class WindowsBleTransport : IBleTransport, IDisposable
             _device = device;
             _characteristic = characteristic;
             _device.ConnectionStatusChanged += OnStatusChanged;
+            // 订阅后复查：句柄构造之前（服务发现期间）链路就已断开时，之后不会再有事件——直接置闩锁，
+            // 由会话所有者的"订阅后复查 IsDropped"识别（与 GattBleConnection 闩锁约定一致）
+            if (device.ConnectionStatus == BluetoothConnectionStatus.Disconnected)
+                Interlocked.Exchange(ref _droppedFlag, 1);
         }
 
         private void OnStatusChanged(BluetoothLEDevice sender, object args)
