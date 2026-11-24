@@ -105,8 +105,10 @@ class FakeLampConnection : LampConnection {
 
     override fun connect(lamp: ScannedLamp) {
         if (fakeLamps.none { it.mac == lamp.mac }) return
+        // 与真实实现同口径：在途（连接中/重连中）或已连接的会话上忽略重复连接
         if (_sessions.value[lamp.mac] == SessionState.CONNECTED ||
-            _sessions.value[lamp.mac] == SessionState.CONNECTING
+            _sessions.value[lamp.mac] == SessionState.CONNECTING ||
+            _sessions.value[lamp.mac] == SessionState.RECONNECTING
         ) return
         _sessions.update { it + (lamp.mac to SessionState.CONNECTING) }
         connectJobsByMac[lamp.mac] = scope.launch {

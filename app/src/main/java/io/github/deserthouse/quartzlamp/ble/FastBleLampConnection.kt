@@ -42,6 +42,15 @@ internal interface BleGateway {
     fun scan(callback: BleScanCallback)
     fun cancelScan()
     fun connect(device: BleDevice, callback: BleGattCallback)
+
+    /**
+     * 陈旧连接成功的善后。FastBle 按设备键维护"已连接表"且**先到先得**（MultipleBluetoothController.addBleBluetooth：
+     * 键已存在就不登记）。"连接中点取消"取消不了传输层的在途连接（FastBle 2.3.4 无此 API）——取消后立刻再连，
+     * 旧尝试若抢在新尝试之前连上，会占住表位；我方陈旧分支随即关掉它的 gatt，而新尝试连上后因键被占**不被登记**，
+     * 此后 notify/write/read 全部路由到那个已关闭的旧句柄：会话显示"已连接"但操作全部失败，直到进程重启。
+     * 若表内句柄正是 [gatt] 本人则移除（把表位让给新尝试），返回是否移除；不是本人则不动（表里是合法的新会话）。
+     */
+    fun evictConnectedIfOwnedBy(device: BleDevice, gatt: android.bluetooth.BluetoothGatt): Boolean
 }
 
 /**
@@ -78,6 +87,18 @@ class FastBleLampConnection private constructor(
 
         override fun connect(device: BleDevice, callback: BleGattCallback) {
             bleManager.connect(device, callback)
+        }
+
+        override fun evictConnectedIfOwnedBy(
+            device: BleDevice,
+            gatt: android.bluetooth.BluetoothGatt,
+        ): Boolean {
+            // 均为 FastBle 公开方法，不改收编源
+            val controller = bleManager.multipleBluetoothController ?: return false
+            val registered = controller.getBleBluetooth(device) ?: return false
+            if (registered.bluetoothGatt !== gatt) return false
+            controller.removeBleBluetooth(registered)
+            return true
         }
     }
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -268,6 +289,8 @@ class FastBleLampConnection private constructor(
                 // 不经 bleManager 按键查找，避免误断同键已易主的新会话
                 Log.w("BLE", "[$mac] stale connect success rejected (owned gatt)")
                 try {
+                    // 先让出传输层"已连接表"的表位，再关句柄（顺序不能反，见 BleGateway.evictConnectedIfOwnedBy）
+                    gatt?.let { gw.evictConnectedIfOwnedBy(bleDevice, it) }
                     gatt?.disconnect()
                     gatt?.close()
                 } catch (_: Exception) {
@@ -344,8 +367,17 @@ class FastBleLampConnection private constructor(
                     attemptTerminal[mac] = terminal
                     setSession(mac, SessionState.CONNECTING)
                     _state.value = aggregatedState()
-                    gw.connect(ble, gattCallback(mac, attempt))
-                    val ok = withTimeoutOrNull(CONNECT_ATTEMPT_TIMEOUT_MS) { terminal.await() } ?: false
+                    // 传输层入口若同步抛异常，按本次尝试失败计：取消原样传播；其余异常不能让后台任务带着
+                    // 异常终止（那会走线程未捕获处理器，且会话停在 CONNECTING、重连预算也随之作废）
+                    val ok = try {
+                        gw.connect(ble, gattCallback(mac, attempt))
+                        withTimeoutOrNull(CONNECT_ATTEMPT_TIMEOUT_MS) { terminal.await() } ?: false
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Log.w("BLE", "[$mac] reconnect attempt threw: $e")
+                        false
+                    }
                     if (ok) return@launch // onConnectSuccess 已置 CONNECTED
                     // R44-02：单次失败不终结预算——循环继续（退避在轮首 delay）
                 }

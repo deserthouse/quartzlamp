@@ -18,6 +18,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -50,15 +51,53 @@ class FastBleLampConnectionSessionTest {
             ByteArray(12).also { it[0] = 7; it[10] = 0x22; it[11] = 0x20 } // 首段长 7 → [10][11]=22 20
     }
 
-    /** 脚本化网关：记录每次 connect 的回调，测试据此驱动 gatt 事件 */
+    /**
+     * 脚本化网关：记录每次 connect 的回调，测试据此驱动 gatt 事件。
+     * [connectedTable] 建模 FastBle 的"已连接表"——按设备键、先到先得（MultipleBluetoothController.addBleBluetooth）；
+     * notify/write/read 都按设备键查这张表，所以"表里是谁"决定了会话的操作落到哪个句柄上。
+     */
     private class ScriptGateway : BleGateway {
         var scanCallback: BleScanCallback? = null
             private set
-        val connects = ArrayList<BleGattCallback>()
-        val last: BleGattCallback get() = connects.last()
+        val connects = ArrayList<Pair<BleDevice, BleGattCallback>>()
+        val last: BleGattCallback get() = connects.last().second
+        val connectedTable = HashMap<String, android.bluetooth.BluetoothGatt>()
+
+        /** 非 null 时：第 N 次 connect 调用（1 起）在记录后同步抛异常——模拟传输层入口抛出运行时异常 */
+        var throwOnConnectFrom: Int? = null
+
         override fun scan(callback: BleScanCallback) { scanCallback = callback }
         override fun cancelScan() {}
-        override fun connect(device: BleDevice, callback: BleGattCallback) { connects += callback }
+        override fun connect(device: BleDevice, callback: BleGattCallback) {
+            connects += device to callback
+            if (throwOnConnectFrom != null && connects.size >= throwOnConnectFrom!!) {
+                throw IllegalStateException("transport entry blew up")
+            }
+        }
+
+        /** 模拟"第 [index] 次尝试服务发现成功"：先按先到先得登记，再回调——与 BleBluetooth 的 MSG_DISCOVER_SUCCESS 同序 */
+        fun succeed(index: Int, gatt: android.bluetooth.BluetoothGatt) {
+            val (device, callback) = connects[index]
+            connectedTable.putIfAbsent(device.mac, gatt)
+            callback.onConnectSuccess(device, gatt, 0)
+        }
+
+        override fun evictConnectedIfOwnedBy(
+            device: BleDevice,
+            gatt: android.bluetooth.BluetoothGatt,
+        ): Boolean {
+            if (connectedTable[device.mac] !== gatt) return false
+            connectedTable.remove(device.mac)
+            return true
+        }
+    }
+
+    /** JVM 上 BluetoothGatt 的构造器是隐藏 API——这里只需要一个有身份的对象，绕过构造器分配 */
+    private fun newGatt(): android.bluetooth.BluetoothGatt {
+        val theUnsafe = sun.misc.Unsafe::class.java.getDeclaredField("theUnsafe")
+        theUnsafe.isAccessible = true
+        return (theUnsafe.get(null) as sun.misc.Unsafe)
+            .allocateInstance(android.bluetooth.BluetoothGatt::class.java) as android.bluetooth.BluetoothGatt
     }
 
     @After fun tearDown() {
@@ -233,6 +272,62 @@ class FastBleLampConnectionSessionTest {
         stale.onConnectFail(ScriptDevice(), OtherException("late"))
         assertEquals("陈旧失败/断开不得改写新尝试", SessionState.CONNECTING, conn.sessions.value[MAC])
         conn.disconnect(MAC)
+    }
+
+    // ━━━ 取消后立即再连：传输层"已连接表"的归属 ━━━
+    //
+    // "连接中点取消"取消不了 FastBle 的在途连接（2.3.4 无此 API），后台仍会按其内部序列重试；
+    // 取消后立刻再点"连接"= 两个 connectGatt 并行。FastBle 的已连接表先到先得：
+    // 旧尝试若抢先连上就占住表位，新尝试连上后不被登记，此后操作全路由到我方即将关闭的旧句柄。
+
+    @Test fun `取消后立即再连_旧尝试抢先连上_不得占住已连接表`() = runTest {
+        val (conn, gw, lamp) = discovered()
+        val gattOld = newGatt()
+        val gattNew = newGatt()
+        conn.connect(lamp) // 尝试 1
+        conn.disconnect(MAC) // 用户取消
+        conn.connect(lamp) // 立即再连：尝试 2，与旧尝试并行
+        assertEquals(2, gw.connects.size)
+
+        gw.succeed(0, gattOld) // 旧尝试抢先把设备连上：FastBle 先到先得登记它
+        assertEquals("陈旧成功不得建立会话", SessionState.CONNECTING, conn.sessions.value[MAC])
+
+        gw.succeed(1, gattNew) // 新尝试连上
+        assertEquals(SessionState.CONNECTED, conn.sessions.value[MAC])
+        assertSame(
+            "已连接表必须指向新会话的句柄——否则此后 notify/write/read 全部落到已关闭的旧句柄",
+            gattNew, gw.connectedTable[MAC]
+        )
+        conn.disconnect(MAC)
+    }
+
+    @Test fun `新尝试先连上_旧尝试后到成功_不误清已连接表`() = runTest {
+        val (conn, gw, lamp) = discovered()
+        val gattOld = newGatt()
+        val gattNew = newGatt()
+        conn.connect(lamp)
+        conn.disconnect(MAC)
+        conn.connect(lamp)
+
+        gw.succeed(1, gattNew)
+        assertEquals(SessionState.CONNECTED, conn.sessions.value[MAC])
+        gw.succeed(0, gattOld) // 旧尝试迟到成功：表里已是新句柄，不得被清
+        assertEquals(SessionState.CONNECTED, conn.sessions.value[MAC])
+        assertSame(gattNew, gw.connectedTable[MAC])
+        conn.disconnect(MAC)
+    }
+
+    @Test fun `重连尝试的传输层入口抛异常_按本次失败计_预算耗尽落DISCONNECTED`() = runTest {
+        val (conn, gw, _) = connected()
+        gw.throwOnConnectFrom = 2 // 首次重连尝试起，传输层入口同步抛异常
+        gw.last.onDisConnected(false, ScriptDevice(), null, 0)
+        repeat(BUDGET) { nextAttempt() }
+        runCurrent()
+        assertEquals(1 + BUDGET, gw.connects.size)
+        assertEquals(
+            "异常尝试应按失败计、预算照常推进，耗尽后落 DISCONNECTED（不得带着异常终止而让会话卡在 CONNECTING）",
+            SessionState.DISCONNECTED, conn.sessions.value[MAC]
+        )
     }
 
     // ━━━ 扫描独立事实 ━━━
