@@ -19,13 +19,13 @@ sound-reactive lamp ("拾音灯"), rebuilt from scratch.
 It does one thing: serve as the remote control for the Lenze Tech sound-reactive lamp.
 It is useful to you only if all three of these hold:
 
-- **You own the lamp** — the one the vendor app "拾音灯" (`com.lenzetech.quartzlamp`) is made for.
+- **You own the lamp**: the one the vendor app "拾音灯" (`com.lenzetech.quartzlamp`) is made for.
   On shopping sites it may turn up under the Alienware name or some other brand, shaped as a
   mouse pad, a headphone stand, or — more likely — some other trendy little piece of junk.
   The protocol targets these only; other models are not supported.
-- **You want a modern-looking app** — one that keeps up with current Android: optional system
-  dynamic color, and a different look by day and by night.
-- **You think the vendor app is terrible** — you want a different remote. This is one rebuilt
+- **You want a modern-looking app**: one that keeps up with current Android, with optional system
+  dynamic color and a different look by day and by night.
+- **You think the vendor app is terrible**: you want a different remote. This is one rebuilt
   from scratch; it installs alongside the vendor app, so you don't have to uninstall that first.
 
 What you get by switching: a Material 3 Expressive UI, modifiable source code, and the public
